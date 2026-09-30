@@ -1,4 +1,15 @@
-// map module - MapLibre instance, registry, ensureLayers guarded on style. v1.8.0
+// map module - MapLibre instance, registry, ensureLayers guarded on style. v1.8.3
+// v1.8.3: Attribution is now COMPLETELY minimized. Previous once-flag
+//          collapseAttribution() ran on first render only; MapLibre's
+//          compact AttributionControl then re-applied `open=""` +
+//          `maplibregl-compact-show` on every style swap / popup interaction,
+//          leaving a 351×24px attribution bar visible on the map. Fix:
+//          (a) collapseAttribution() now runs every time, no once-flag.
+//          (b) MutationObserver on the element itself reverts any re-open
+//              in the same animation frame.
+//          (c) CSS .maplibregl-ctrl-attrib tightened to 22×22px circle with
+//              only the "i" glyph visible; expanded state constrained to
+//              max-width: 200px so the attribution row stays compact.
 // v1.8.0: Attribution moved to bottom-left (was bottom-right) so the POI
 //          sheet can't intercept clicks. collapseAttribution() simplified —
 //          only runs on first render so user click toggles stick. Added a
@@ -33,7 +44,7 @@
 //          are scoped to basemap layers only — REGISTRY layers (boundary/wedge/pois)
 //          keep their own theme-driven colors via paintsForTheme().
 export const name = 'map';
-export const version = '1.8.2';
+export const version = '1.8.3';
 export const deps = [];
 
 const STYLE_URLS = {
@@ -159,7 +170,6 @@ function safeSetPaint(map, layerId, prop, value) {
 
 function applyBasemapOverrides(map, theme) {
   if (!map || !map.isStyleLoaded()) return;
-  console.log('[basemap] applyBasemapOverrides theme=' + theme + ' layers=' + (map.getStyle()?.layers?.length || 0));
   const layers = (map.getStyle() && map.getStyle().layers) || [];
   const dark = theme === 'dark';
 
@@ -319,7 +329,6 @@ export function init({ app, events, log }) {
 
   function ensureLayers() {
     if (!map) return;
-    console.log('[basemap] ensureLayers entered, isStyleLoaded=' + map.isStyleLoaded());
     if (!map.isStyleLoaded()) {
       map.once('styledata', ensureLayers);
       map.once('idle', ensureLayers);
@@ -393,17 +402,33 @@ export function init({ app, events, log }) {
   }
 
   // v1.5.0 — MapLibre's compact AttributionControl renders open by default,
-// filling the center of the map with the full attribution string. Force it
-// closed so only the small "i" icon shows until the user taps it.
-//
-// v1.8.0 — Simplified: only collapse on initial creation / style swap.
-// Previous code had a no-op setInterval and a MutationObserver that stripped
-// the `open` attribute after the user clicked, which sometimes caused the
-// click toggle to fail. We now let MapLibre own the toggle once the element
-// is in the DOM — the user clicks the <summary> button, MapLibre's onclick
-// handler adds/removes `maplibregl-compact-show`, and CSS shows/hides inner
-// text. We only collapse once on initial render (idempotent via flag).
+  // filling the center of the map with the full attribution string. Force it
+  // closed so only the small "i" icon shows until the user taps it.
+  //
+  // v1.8.3 — MapLibre re-applies `open=""` + `maplibregl-compact-show` on
+  //          every style swap and on every popup interaction (its own
+  //          internal code calls `attrib.inner.classList.add(...)` whenever
+  //          the map state changes). The v1.8.0 once-flag collapsed the
+  //          element once and never again, leaving a 351×24px attribution
+  //          bar visible on every page load. We now run collapseAttribution()
+  //          on every event that might re-open it (styledata, idle, load,
+  //          popupopen/close) AND maintain a permanent MutationObserver on
+  //          the element itself so any re-open by MapLibre is reverted in
+  //          the same animation frame — UNLESS the user explicitly tapped
+  //          the summary button within the last `USER_EXPAND_GRACE_MS`. In
+  //          that window the user-initiated expansion is preserved (and
+  //          MapLibre's automatic re-opens are ignored), so the user can read
+  //          the full attribution. After the grace window expires, normal
+  //          MapLibre-driven re-opens get reverted again.
+  const USER_EXPAND_GRACE_MS = 4000;
   let _attribObserver = null;
+  let _attribSelfObserver = null;
+  let _userExpandedUntil = 0;
+
+  function _userTapped() {
+    _userExpandedUntil = Date.now() + USER_EXPAND_GRACE_MS;
+  }
+
   function collapseAttribution() {
     const el = document.querySelector('.maplibregl-ctrl-attrib');
     if (!el) {
@@ -419,13 +444,32 @@ export function init({ app, events, log }) {
       _attribObserver.observe(document.documentElement, { childList: true, subtree: true });
       return;
     }
-    // Collapse only on first encounter. After that, leave the user's
-    // open/closed state alone so click toggles stick.
-    if (!el._cmInitialCollapseDone) {
-      el.removeAttribute('open');
-      el.classList.remove('maplibregl-compact-show');
-      el._cmInitialCollapseDone = true;
+    // Wire the user-tap detector once. MapLibre uses click on <summary> to
+    // toggle the <details>. We mark a grace window on every tap.
+    const summary = el.querySelector('summary');
+    if (summary && !summary._cmTapWired) {
+      summary.addEventListener('click', _userTapped);
+      summary._cmTapWired = true;
     }
+
+    // Always collapse. MapLibre keeps re-opening it, so a once-flag is a
+    // regression waiting to happen.
+    el.removeAttribute('open');
+    el.classList.remove('maplibregl-compact-show');
+
+    // Watch the element itself so any re-open by MapLibre is reverted,
+    // unless the user explicitly tapped it within the grace window.
+    if (_attribSelfObserver) _attribSelfObserver.disconnect();
+    _attribSelfObserver = new MutationObserver(() => {
+      const e = document.querySelector('.maplibregl-ctrl-attrib');
+      if (!e) return;
+      if (Date.now() < _userExpandedUntil) return;   // honor user tap
+      if (e.hasAttribute('open') || e.classList.contains('maplibregl-compact-show')) {
+        e.removeAttribute('open');
+        e.classList.remove('maplibregl-compact-show');
+      }
+    });
+    _attribSelfObserver.observe(el, { attributes: true, attributeFilter: ['open', 'class'] });
   }
 
   function initMap(container, opts = {}) {
@@ -446,8 +490,12 @@ export function init({ app, events, log }) {
     // sheet sometimes overlapped it.
     map.addControl(new window.maplibregl.AttributionControl({ compact: true }), 'bottom-left');
     // Collapse attribution immediately (control element already exists in DOM)
-    // and again after load (defensive — MapLibre may re-render on style swap).
+    // and on every event that might re-open it (v1.8.3 — MapLibre re-applies
+    // `open=""` on styledata, idle, load, and popup interactions).
     collapseAttribution();
+    ['load', 'styledata', 'idle', 'sourcedata', 'popupopen', 'popupclose'].forEach((ev) => {
+      map.on(ev, collapseAttribution);
+    });
     map.on('load', () => {
       ensureLayers();
       collapseAttribution();

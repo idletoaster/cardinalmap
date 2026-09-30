@@ -1,4 +1,15 @@
 // versions.js - aggregated module versions. v1.0.0
+// v1.0.9: APP_VERSION bumped to 2.5.7 — attribution COMPLETELY minimized.
+//          map 1.8.3: collapseAttribution() now runs on every map event
+//          (load/styledata/idle/sourcedata/popupopen/popupclose) AND a
+//          MutationObserver on the .maplibregl-ctrl-attrib element itself
+//          reverts any re-open in the same animation frame. The previous
+//          once-flag (v1.8.0) collapsed the element once but MapLibre
+//          re-applied `open=""` on every style swap and popup interaction,
+//          leaving a 351×24px attribution bar visible. CSS shrinks the
+//          collapsed state to a true 22×22 dark circle with only the "i"
+//          glyph; expanded state (when user explicitly taps) caps at
+//          min(220px, 100vw-32px) so it never spans the screen.
 // v1.0.8: APP_VERSION bumped to 2.5.6 — bugfix: dark-mode label overrides
 //          actually applying. map 1.8.2 fixes two bugs in applyBasemapOverrides
 //          that meant the v1.8.0/1.8.1 palette edits had zero visible effect:
@@ -49,7 +60,7 @@ import { name as dbgN, version as dbgV } from '../modules/debug-hud/index.js';
 import { name as backN, version as backV } from '../modules/back-to-city/index.js';
 
 export const CORE_VERSION = '1.0.0';
-export const APP_VERSION = '2.5.6';
+export const APP_VERSION = '2.5.7';
 export const MODULES = {
   [apiN]: apiV,
   [themeN]: themeV,

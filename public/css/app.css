@@ -250,34 +250,48 @@ body {
 .maplibregl-ctrl-bottom-right { display: none; }   /* attribution moved to bottom-left */
 .maplibregl-ctrl-bottom-left  { margin-bottom: calc(var(--sheet-collapsed-h) + var(--safe-bottom) + 8px); margin-left: 8px; }
 
-/* Attribution control — small "i" icon by default (v1.5.0).
-   MapLibre renders a <details> that ships with `open=""` and
-   `maplibregl-compact-show`, painting 350px of text across the map.
-   We strip those in map/index.js collapseAttribution() so only the
-   button shows; clicking it expands to the full attribution. */
+/* Attribution control — truly minimized (v1.8.3).
+   MapLibre's compact AttributionControl ships with `open=""` and
+   `maplibregl-compact-show`, painting ~350px of text across the map.
+   map/index.js collapseAttribution() now strips those attributes on
+   EVERY mutation (MutationObserver + re-fire on styledata/idle/load).
+   Collapsed state is a 22x22 dark circle with just the "i" glyph;
+   expanded state (only when user explicitly taps the icon) is a compact
+   row capped at 220px wide so it never spans the screen. */
 .maplibregl-ctrl-attrib {
   background: rgba(0,0,0,.55);
   color: #fff;
   border-radius: 999px;
-  font-size: 12px;
-  max-width: 26px;
-  max-height: 26px;
+  font-size: 11px;
+  max-width: 22px;
+  max-height: 22px;
+  min-width: 22px;
+  min-height: 22px;
   overflow: hidden;
-  transition: max-width .18s ease, max-height .18s ease, border-radius .18s ease;
+  padding: 0;
+  transition: max-width .18s ease, max-height .18s ease, border-radius .18s ease, padding .18s ease;
 }
 .maplibregl-ctrl-attrib a { color: #d2d8df; }
+.maplibregl-ctrl-attrib-inner { display: none; }
 .maplibregl-ctrl-attrib.maplibregl-compact-show {
-  max-width: calc(100vw - 32px);
+  max-width: min(220px, calc(100vw - 32px));
   max-height: 60vh;
+  min-height: 22px;
   border-radius: 12px;
-  padding: 4px 8px;
+  padding: 4px 10px 4px 28px;
   background: rgba(0,0,0,.78);
 }
-.maplibregl-ctrl-attrib:not(.maplibregl-compact-show) .maplibregl-ctrl-attrib-inner { display: none; }
+.maplibregl-ctrl-attrib.maplibregl-compact-show .maplibregl-ctrl-attrib-inner {
+  display: block;
+  line-height: 1.4;
+}
+.maplibregl-ctrl-attrib.maplibregl-compact-show .maplibregl-ctrl-attrib-inner a { display: inline-block; margin-right: 6px; }
 .maplibregl-ctrl-attrib-button {
   background-color: transparent !important;
   display: block;
   cursor: pointer;
+  width: 22px;
+  height: 22px;
 }
 
 /* POI popup */
