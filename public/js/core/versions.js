@@ -1,4 +1,23 @@
 // versions.js - aggregated module versions. v1.0.0
+// v1.0.8: APP_VERSION bumped to 2.5.6 — bugfix: dark-mode label overrides
+//          actually applying. map 1.8.2 fixes two bugs in applyBasemapOverrides
+//          that meant the v1.8.0/1.8.1 palette edits had zero visible effect:
+//            (a) safeSetPaint guarded on Object.hasOwnProperty(paint, prop),
+//                but layer.paint is wrapped by MapLibre's crossfading object
+//                (keys are '_properties' / '_values') so the guard returned
+//                false for every property and nothing was set.
+//            (b) the if/else matched `place_label_*` / `road_label_*`, but
+//                the real basemap layer ids are `place_*` / `highway_name_*`
+//                (no `_label` suffix). New id prefixes now match the dark
+//                Liberty style and the brighter palette applies.
+// v1.0.7: APP_VERSION bumped to 2.5.5 — back-to-city overlap + brighter labels.
+//          map 1.8.1 bumps the dark-mode label palette one tier brighter
+//          (city/town → pure white, suburb → bright grey, road major →
+//          near-white, road minor → bright grey) and strengthens the
+//          text halo to rgba(0,0,0,0.95) width 1.8. back-to-city 1.2.2
+//          moves its FAB from top-right (top:140px right:16px — collided
+//          with the GeolocateControl) to top-left, mirroring the offset
+//          of the NavigationControl group. CSS-only change in app.css.
 // v1.0.6: APP_VERSION bumped to 2.5.4 — UX fixes batch (map 1.8.0
 //          attribution bottom-left + dark label hierarchy, theme 1.0.1
 //          cycle() is a true light/dark toggle, back-to-city 1.2.1
@@ -30,7 +49,7 @@ import { name as dbgN, version as dbgV } from '../modules/debug-hud/index.js';
 import { name as backN, version as backV } from '../modules/back-to-city/index.js';
 
 export const CORE_VERSION = '1.0.0';
-export const APP_VERSION = '2.5.4';
+export const APP_VERSION = '2.5.6';
 export const MODULES = {
   [apiN]: apiV,
   [themeN]: themeV,

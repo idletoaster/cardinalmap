@@ -12,7 +12,7 @@
 // truly-final transform; gate moveend updates with an ignore-window so
 // in-flight fitToBoundary animations don't spuriously show the button.
 export const name = 'back-to-city';
-export const version = '1.2.1';
+export const version = '1.2.2';
 export const deps = ['map', 'state', 'events', 'sheet'];
 
 const PAN_THRESHOLD_DEG = 0.0008;   // ~80m at CA latitude

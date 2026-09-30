@@ -316,9 +316,13 @@ body {
 
 /* Dynamic elements injected by JS modules */
 #back-to-city {
-  /* sits BELOW the MapLibre NavigationControl (which is ~64px tall + 10px gap
-     from top-right). Top:140px clears the zoom +/- buttons entirely. */
-  position: absolute; top: 140px; right: 16px; z-index: 9;
+  /* v1.2.2: moved from top-right (top:140px right:16px) to top-left.
+     The NavigationControl + GeolocateControl both live in
+     .maplibregl-ctrl-top-right, so the previous position collided with
+     the Geolocate (Find-my-location) button. Top-left is empty
+     (top-left control group is `display:none`), so we mirror the
+     top-right offset exactly. */
+  position: absolute; top: calc(var(--safe-top) + 60px); left: 16px; z-index: 9;
   width: 44px; height: 44px; border-radius: 50%;
   background: var(--accent); color: #fff; border: none; font-size: 18px;
   cursor: pointer; display: none; align-items: center; justify-content: center;

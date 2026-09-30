@@ -33,7 +33,7 @@
 //          are scoped to basemap layers only — REGISTRY layers (boundary/wedge/pois)
 //          keep their own theme-driven colors via paintsForTheme().
 export const name = 'map';
-export const version = '1.8.0';
+export const version = '1.8.2';
 export const deps = [];
 
 const STYLE_URLS = {
@@ -142,13 +142,16 @@ function annotate(fc, palette) {
 function safeSetPaint(map, layerId, prop, value) {
   try {
     if (!map.getLayer(layerId)) return false;
-    const layer = map.getLayer(layerId);
-    const paint = layer && layer.paint;
-    if (paint && Object.prototype.hasOwnProperty.call(paint, prop)) {
-      map.setPaintProperty(layerId, prop, value);
-      return true;
-    }
-    return false;
+    // v1.8.1 — bug fix: MapLibre wraps layer.paint in an internal
+    // crossfading object (keys are '_properties' / '_values', not the
+    // property names themselves). The previous hasOwnProperty guard
+    // returned false for EVERY paint property, so the dark-mode label
+    // overrides never actually applied and labels kept their basemap
+    // defaults (~rgb(101,101,101) grey). setPaintProperty is itself a
+    // no-op if the layer doesn't support that property, so we can call
+    // it unconditionally and rely on MapLibre's own validation.
+    map.setPaintProperty(layerId, prop, value);
+    return true;
   } catch (_) {
     return false;
   }
@@ -156,6 +159,7 @@ function safeSetPaint(map, layerId, prop, value) {
 
 function applyBasemapOverrides(map, theme) {
   if (!map || !map.isStyleLoaded()) return;
+  console.log('[basemap] applyBasemapOverrides theme=' + theme + ' layers=' + (map.getStyle()?.layers?.length || 0));
   const layers = (map.getStyle() && map.getStyle().layers) || [];
   const dark = theme === 'dark';
 
@@ -264,51 +268,47 @@ function applyBasemapOverrides(map, theme) {
     if (layer.type !== 'symbol') continue;
     const id = layer.id;
     if (id === 'poi-label') continue;
-    const isLabel = id.includes('name') || id.startsWith('place') ||
-                    id.startsWith('road_label') || id.startsWith('poi_') ||
-                    id.startsWith('waterway_label') || id.startsWith('transit') ||
-                    id.startsWith('housenum');
+    // v1.8.1 — bug fix: real basemap layer ids are `place_*`, `highway_name_*`,
+    // `water_name`, `housenum_*`, `transit_*` — they do NOT have a `_label`
+    // suffix. The v1.8.0 check `id.startsWith('place_label')` matched
+    // nothing, so every label fell through to a hard-coded `#f0f2f5` AND
+    // (worse) the safeSetPaint guard short-circuited anyway, leaving the
+    // basemap's default `~rgb(101,101,101)` grey untouched. We now key
+    // off the actual id prefixes.
+    const isLabel = id.startsWith('place_') || id.startsWith('highway_name') ||
+                    id.startsWith('water_name') || id.startsWith('waterway_') ||
+                    id.startsWith('transit_') || id.startsWith('housenum') ||
+                    id.includes('_name');
     if (!isLabel) continue;
-    // v1.8.0 — Label hierarchy. Previously every label was painted the
-    // same color (#e8eaed) which made neighborhoods, arterials and city
-    // names blur into one another on dark backgrounds. Now:
-    //   • place_label_*city/state  → bright white   (most prominent)
-    //   • place_label_*town        → soft white     (next tier)
-    //   • place_label_*suburb/village/neighbourhood → dim grey
-    //   • road_label major         → medium white
-    //   • road_label minor         → dim grey       (less prominent)
-    //   • waterway/water labels    → light blue
-    //   • transit                  → medium grey
-    //   • housenum                 → dim grey
     let color;
-    if (id.startsWith('place_label')) {
+    if (id.startsWith('place_')) {
       if (id.includes('city') || id.includes('state') || id.includes('country')) {
         color = '#ffffff';
       } else if (id.includes('town')) {
-        color = '#e8eaed';
+        color = '#ffffff';
       } else {
-        // suburb, village, neighbourhood, hamlet, quarter, locality
-        color = '#9aa3ad';
+        // suburb, village, neighbourhood, hamlet, quarter, locality, other
+        color = '#d0d4dc';
       }
-    } else if (id.startsWith('road_label') || id.includes('road_label')) {
+    } else if (id.startsWith('highway_name')) {
       if (id.includes('minor') || id.includes('service') || id.includes('path') || id.includes('track')) {
-        color = '#9aa3ad';
+        color = '#c0c7d2';
       } else {
-        color = '#dadde2';
+        color = '#f0f2f5';
       }
-    } else if (id.startsWith('waterway_label') || id.startsWith('water_label')) {
-      color = '#9ec3ff';
-    } else if (id.startsWith('transit')) {
-      color = '#b6bcc6';
+    } else if (id.startsWith('water_') || id.startsWith('waterway_')) {
+      color = '#b8d4ff';
+    } else if (id.startsWith('transit_')) {
+      color = '#e2e6ec';
     } else if (id.startsWith('housenum')) {
-      color = '#7d858f';
+      color = '#a8afb8';
     } else {
-      color = '#dadde2';
+      color = '#f0f2f5';
     }
     safeSetPaint(map, id, 'text-color', color);
-    safeSetPaint(map, id, 'text-halo-color', 'rgba(26,26,26,1)');
-    safeSetPaint(map, id, 'text-halo-width', 1.6);
-    safeSetPaint(map, id, 'text-halo-blur', 0.4);
+    safeSetPaint(map, id, 'text-halo-color', 'rgba(0,0,0,0.95)');
+    safeSetPaint(map, id, 'text-halo-width', 1.8);
+    safeSetPaint(map, id, 'text-halo-blur', 0.6);
   }
 }
 
@@ -319,6 +319,7 @@ export function init({ app, events, log }) {
 
   function ensureLayers() {
     if (!map) return;
+    console.log('[basemap] ensureLayers entered, isStyleLoaded=' + map.isStyleLoaded());
     if (!map.isStyleLoaded()) {
       map.once('styledata', ensureLayers);
       map.once('idle', ensureLayers);
