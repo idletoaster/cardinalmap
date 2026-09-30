@@ -26,6 +26,10 @@
         <input id="search-input" type="search" placeholder="Search city, county, state" autocomplete="off">
         <ul id="search-results" class="search-results" hidden></ul>
       </div>
+      <div class="seg-toggle" role="tablist" aria-label="Region level">
+        <button class="seg-btn active" data-level="city"  role="tab" aria-selected="true">City</button>
+        <button class="seg-btn"        data-level="county" role="tab" aria-selected="false">County</button>
+      </div>
       <button id="style-toggle" class="icon-btn" aria-label="Toggle map style" title="Toggle light/dark style">
         <svg viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M12 2a10 10 0 1 0 10 10A10.011 10.011 0 0 0 12 2Zm0 18a8 8 0 1 1 8-8 8.009 8.009 0 0 1-8 8Zm0-14a6 6 0 1 0 6 6 6.006 6.006 0 0 0-6-6Zm0 10a4 4 0 1 1 4-4 4 4 0 0 1-4 4Z"/></svg>
       </button>
@@ -68,6 +72,12 @@
 
   <!-- MapLibre -->
   <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+  <!-- Polygon clipping (vendored) — used to clip the directional wedge
+       to the selected city/county boundary so the highlight stays inside
+       the selected region. MapLibre's `within` filter requires full
+       containment, so the 10 mi pie slice can't be clipped via that
+       filter alone. -->
+  <script src="/vendor/polygon-clipping.umd.min.js"></script>
   <script type="module" src="/js/app.js"></script>
 </body>
 </html>

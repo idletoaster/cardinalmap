@@ -1,5 +1,7 @@
 'use strict';
 
+// azimuth.js - ST_Azimuth 8-direction spatial query. v1.1.0 (server-side dedup).
+
 const { sectorFor, isValidDirection } = require('./sectors');
 const pool = require('../db/pool');
 
@@ -39,34 +41,51 @@ async function queryDirection({ lat, lon, direction, radiusM, categoryIds }) {
 
   // origin_pt and origin_geog are referenced once per occurrence in the same SELECT.
   // $1=lon, $2=lat, $3=radiusM
+  // DISTINCT ON (osm_type, osm_id) collapses duplicates where the same
+  // physical OSM feature is tagged under multiple categories (e.g. a
+  // Starbucks tagged amenity=cafe AND shop=beverages). Ordering by
+  // distance_m ASC picks the closest row; for ties we prefer more specific
+  // categories over generic ones.
   const sql = `
     WITH origin AS (
       SELECT
         ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography AS origin_geog,
         ST_SetSRID(ST_MakePoint($1, $2), 4326)         AS origin_pt
+    ),
+    ranked AS (
+      SELECT
+        p.id,
+        p.osm_id,
+        p.osm_type,
+        p.category_id,
+        p.name,
+        p.brand,
+        p.address,
+        p.city,
+        p.state,
+        p.postcode,
+        p.phone,
+        p.website,
+        p.opening_hours,
+        ST_Y(p.geom::geometry) AS lat,
+        ST_X(p.geom::geometry) AS lon,
+        degrees(ST_Azimuth(origin.origin_geog, p.geom::geography)) AS bearing,
+        ST_Distance(origin.origin_geog, p.geom::geography)         AS distance_m,
+        ROW_NUMBER() OVER (
+          PARTITION BY p.osm_type, p.osm_id
+          ORDER BY ST_Distance(origin.origin_geog, p.geom::geography) ASC, p.id ASC
+        ) AS rn
+      FROM pois p, origin
+      WHERE ST_DWithin(p.geom::geography, origin.origin_geog, $3)
+        AND ${bearingFilter}
+        ${categoryFilter}
     )
     SELECT
-      p.id,
-      p.osm_id,
-      p.osm_type,
-      p.category_id,
-      p.name,
-      p.brand,
-      p.address,
-      p.city,
-      p.state,
-      p.postcode,
-      p.phone,
-      p.website,
-      p.opening_hours,
-      ST_Y(p.geom::geometry) AS lat,
-      ST_X(p.geom::geometry) AS lon,
-      degrees(ST_Azimuth(origin.origin_geog, p.geom::geography)) AS bearing,
-      ST_Distance(origin.origin_geog, p.geom::geography)         AS distance_m
-    FROM pois p, origin
-    WHERE ST_DWithin(p.geom::geography, origin.origin_geog, $3)
-      AND ${bearingFilter}
-      ${categoryFilter}
+      id, osm_id, osm_type, category_id, name, brand, address,
+      city, state, postcode, phone, website, opening_hours,
+      lat, lon, bearing, distance_m
+    FROM ranked
+    WHERE rn = 1
     ORDER BY distance_m ASC
     LIMIT 500;
   `;

@@ -4,6 +4,7 @@ const express = require('express');
 const cfg = require('../../config');
 const { ensureRegion } = require('../services/ingestRegion');
 const pool = require('../db/pool');
+const { lookupByOsm } = require('../nominatim/client');
 
 const router = express.Router();
 
@@ -17,17 +18,33 @@ function requireAdmin(req, res, next) {
   next();
 }
 
-// POST /api/admin/refresh  body: { lat, lon, label? }
+// POST /api/admin/refresh  body: { lat, lon, label?, mode?, osm_type?, osm_id? }
 router.post('/refresh', requireAdmin, async (req, res, next) => {
   try {
-    const { lat, lon, label } = req.body || {};
+    const { lat, lon, label, osm_type: osmType, osm_id: osmId } = req.body || {};
     if (typeof lat !== 'number' || typeof lon !== 'number') {
       return res.status(400).json({ error: 'lat and lon required' });
+    }
+    let geojson = null;
+    let centroid = null;
+    if (osmType && osmId) {
+      try {
+        const place = await lookupByOsm({ osmType, osmId });
+        if (place) {
+          geojson = place.geojson || null;
+          if (geojson) {
+            const { centroidOfGeoJSON } = require('../util/polygon');
+            centroid = centroidOfGeoJSON(geojson);
+          }
+        }
+      } catch (_) { /* non-fatal */ }
     }
     const out = await ensureRegion({
       lat, lon, radiusMiles: cfg.app.maxRadius,
       country: cfg.app.countryCode,
       label, force: true,
+      mode: req.body?.mode === 'county' ? 'county' : 'city',
+      geojson, centroid,
     });
     res.json({ ok: true, ...out });
   } catch (e) { next(e); }

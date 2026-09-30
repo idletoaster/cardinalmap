@@ -2,6 +2,7 @@
 
 require('dotenv').config();
 const path = require('path');
+const fs = require('fs');
 const express = require('express');
 const morgan = require('morgan');
 
@@ -14,15 +15,18 @@ const directionRoutes = require('./routes/direction');
 const poiRoutes       = require('./routes/poi');
 const adminRoutes     = require('./routes/admin');
 
+const APP_VERSION  = '2.1.0';
+const CORE_VERSION = '1.0.0';
+const MODULES = {
+  api: '1.1.0', theme: '1.0.0', map: '1.1.0', wedge: '1.0.0', city: '1.0.0',
+  direction: '1.1.0', poi: '1.1.0', search: '1.0.0', geolocate: '1.0.0',
+  sheet: '1.0.0', compass: '1.0.0', level: '1.0.0', 'style-toggle': '1.0.0',
+  toast: '1.0.0', 'debug-hud': '1.0.0', 'back-to-city': '1.1.0',
+};
+
 const app = express();
-
-// Trust the Cloudflare / Nginx proxy chain so req.ip / X-Forwarded-* work.
 app.set('trust proxy', true);
-
-// Body parsing for /api/admin
 app.use(express.json({ limit: '64kb' }));
-
-// Request log
 app.use(morgan(cfg.nodeEnv === 'production' ? 'combined' : 'dev'));
 
 // API routes
@@ -32,28 +36,115 @@ app.use('/api', directionRoutes);
 app.use('/api', poiRoutes);
 app.use('/api/admin', adminRoutes);
 
-// Health
-app.get('/healthz', (_req, res) => res.json({ ok: true, version: '1.0.0' }));
+// --- New version + shell-manifest endpoints ---
+app.get('/api/version', (_req, res) => {
+  res.json({
+    app: APP_VERSION,
+    core: CORE_VERSION,
+    modules: MODULES,
+    serverTime: new Date().toISOString(),
+  });
+});
 
-// Static PWA. Serve the PWA at the root "/" so it works behind a reverse proxy.
+function buildShellManifest() {
+  const items = [];
+  const PUBLIC_DIR_LOCAL = path.join(__dirname, '..', 'public');
+  const walk = (rel) => {
+    const full = path.join(PUBLIC_DIR_LOCAL, rel);
+    if (!fs.existsSync(full)) return;
+    for (const ent of fs.readdirSync(full, { withFileTypes: true })) {
+      const childRel = rel ? path.posix.join(rel, ent.name) : ent.name;
+      if (ent.isDirectory()) walk(childRel);
+      else if (ent.isFile() && ent.name.endsWith('.js')) {
+        const fp = path.join(PUBLIC_DIR_LOCAL, childRel);
+        let mtime = 0;
+        try { mtime = fs.statSync(fp).mtimeMs | 0; } catch {}
+        const urlPath = '/' + childRel.split(path.sep).join('/');
+        items.push({ path: urlPath, mtime });
+      }
+    }
+  };
+  walk('js/core');
+  walk('js/modules');
+  return items;
+}
+
+app.get('/api/shell-manifest', (_req, res) => {
+  res.json({ version: 'cardinalmap-v7', items: buildShellManifest() });
+});
+
+// Health
+app.get('/healthz', (_req, res) => res.json({ ok: true, version: APP_VERSION }));
+
+// Static PWA
 const PUBLIC_DIR = path.join(__dirname, '..', 'public');
 
-// Cache headers for hashed assets could go here; for simplicity we keep no-cache for HTML.
+function moduleMtime(absRel) {
+  try {
+    const fp = path.join(PUBLIC_DIR, absRel);
+    return String(fs.statSync(fp).mtimeMs | 0);
+  } catch { return String(Date.now()); }
+}
+
+// Cache-bust /js/app.js AND rewrite all relative `./...` imports (incl. core/, modules/).
+app.get(/^\/js\/app\.js(?:\?.*)?$/, (req, res, next) => {
+  const filePath = path.join(PUBLIC_DIR, 'js', 'app.js');
+  fs.readFile(filePath, 'utf8', (err, code) => {
+    if (err) return next(err);
+    const v = moduleMtime('js/app.js');
+    const busted = code.replace(
+      /(from\s+['"])(\.{1,2}\/[^"']+)(['"])/g,
+      (_m, head, spec, tail) => {
+        // resolve to /js/<...>
+        let rel = spec;
+        if (rel.startsWith('./')) rel = rel.slice(2);
+        else if (rel.startsWith('../')) {
+          const parts = rel.split('/');
+          const stack = [];
+          for (const p of parts) {
+            if (p === '..') stack.pop();
+            else if (p !== '.') stack.push(p);
+          }
+          rel = stack.join('/');
+        }
+        const abs = '/js/' + rel;
+        const mv = moduleMtime(abs.slice(1));
+        return `${head}${abs}?v=${mv}${tail}`;
+      }
+    );
+    res.setHeader('Content-Type', 'application/javascript; charset=UTF-8');
+    res.setHeader('Cache-Control', 'no-store');
+    res.send(busted);
+  });
+});
+
 app.use(express.static(PUBLIC_DIR, {
+  index: false,
   extensions: ['html'],
   setHeaders(res, filePath) {
     if (/\.html$/.test(filePath)) {
       res.setHeader('Cache-Control', 'no-cache');
-    } else if (/\.(?:png|jpg|jpeg|svg|webp|ico|css|js|woff2?)$/.test(filePath)) {
-      res.setHeader('Cache-Control', 'public, max-age=604800, immutable'); // 7d
+    } else if (/\.(?:css|js)$/.test(filePath)) {
+      res.setHeader('Cache-Control', 'no-store');
+    } else if (/\.(?:png|jpg|jpeg|svg|webp|ico|woff2?)$/.test(filePath)) {
+      res.setHeader('Cache-Control', 'public, max-age=21600, must-revalidate');
     }
   },
 }));
 
-// SPA fallback: any non-/api GET serves index.html so client-side routes work.
+// SPA fallback
 app.get(/^\/(?!api\/|healthz$).*/, (_req, res, next) => {
   const indexPath = path.join(PUBLIC_DIR, 'index.html');
-  res.sendFile(indexPath, (err) => { if (err) next(err); });
+  fs.readFile(indexPath, 'utf8', (err, html) => {
+    if (err) return next(err);
+    const v = moduleMtime('js/app.js');
+    const cssV = moduleMtime('css/app.css');
+    let out = html.replace(/src="\/js\/app\.js"/g, `src="/js/app.js?v=${v}"`);
+    out = out.replace(/href="\/css\/app\.css"/g, `href="/css/app.css?v=${cssV}"`);
+    res.setHeader('Content-Type', 'text/html; charset=UTF-8');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.send(out);
+  });
 });
 
 // Error handler
@@ -64,4 +155,4 @@ app.use((err, _req, res, _next) => {
 });
 
 const port = cfg.port;
-app.listen(port, () => log.info(`cardinalmap listening on :${port}`, { origin: cfg.publicOrigin || '(none)' }));
+app.listen(port, () => log.info(`cardinalmap listening on :${port}`, { origin: cfg.publicOrigin || '(none)', version: APP_VERSION }));

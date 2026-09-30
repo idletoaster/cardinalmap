@@ -1,39 +1,44 @@
-// CardinalMap service worker — cache-first shell + last-area tile cache (50 tiles).
-const VERSION = 'cardinalmap-v1';
+// CardinalMap service worker v6 - dynamic shell manifest.
+const VERSION = 'cardinalmap-v7';
 const SHELL_CACHE = `${VERSION}-shell`;
 const TILE_CACHE  = `${VERSION}-tiles`;
 const DATA_CACHE  = `${VERSION}-data`;
+const TILE_MAX = 50;
 
-const SHELL_ASSETS = [
+const SHELL_FALLBACK = [
   '/',
   '/index.html',
   '/manifest.json',
   '/css/app.css',
-  '/js/app.js',
-  '/js/map.js',
-  '/js/compass.js',
-  '/js/bottomSheet.js',
-  '/js/search.js',
-  '/js/api.js',
   '/icons/icon.svg',
   '/icons/icon-192.png',
   '/icons/icon-512.png',
 ];
 
-const TILE_MAX = 50;
-
 self.addEventListener('install', (event) => {
-  event.waitUntil(caches.open(SHELL_CACHE).then((c) => c.addAll(SHELL_ASSETS).catch(() => {})));
-  self.skipWaiting();
+  event.waitUntil((async () => {
+    const cache = await caches.open(SHELL_CACHE);
+    let manifest = { items: [] };
+    try {
+      const r = await fetch('/api/shell-manifest');
+      if (r.ok) manifest = await r.json();
+    } catch (e) { /* offline install */ }
+    const urls = [
+      ...SHELL_FALLBACK,
+      ...(manifest.items || []).map(i => i.path),
+      '/js/app.js',
+    ];
+    await Promise.allSettled(urls.map((u) => cache.add(u).catch(() => {})));
+    self.skipWaiting();
+  })());
 });
 
 self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => !k.startsWith(VERSION)).map((k) => caches.delete(k)))
-    )
-  );
-  self.clients.claim();
+  event.waitUntil((async () => {
+    const keys = await caches.keys();
+    await Promise.all(keys.filter((k) => !k.startsWith(VERSION)).map((k) => caches.delete(k)));
+    await self.clients.claim();
+  })());
 });
 
 self.addEventListener('fetch', (event) => {
@@ -41,13 +46,13 @@ self.addEventListener('fetch', (event) => {
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
 
-  // Same-origin shell — cache-first.
   if (url.origin === self.location.origin) {
+    const isAppCode = url.pathname.startsWith('/js/') || url.pathname.startsWith('/css/');
+    if (isAppCode) return; // pass through; server sends no-cache/no-store
     event.respondWith(
       caches.match(req).then((hit) =>
         hit || fetch(req).then((res) => {
-          // Cache successful shell-like responses
-          if (res && res.status === 200 && (req.destination === 'document' || req.destination === 'script' || req.destination === 'style' || req.destination === 'image' || req.destination === 'font')) {
+          if (res && res.status === 200 && (req.destination === 'document' || req.destination === 'image' || req.destination === 'font')) {
             const copy = res.clone();
             caches.open(SHELL_CACHE).then((c) => c.put(req, copy)).catch(() => {});
           }
@@ -58,7 +63,6 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Cross-origin: OpenFreeMap tiles. Cache up to TILE_MAX most-recent.
   if (url.host.endsWith('openfreemap.org') || url.host.endsWith('tiles.openfreemap.org')) {
     event.respondWith(
       caches.open(TILE_CACHE).then(async (cache) => {
@@ -71,31 +75,16 @@ self.addEventListener('fetch', (event) => {
             cache.put(req, copy).then(async () => {
               const keys = await cache.keys();
               if (keys.length > TILE_MAX) {
-                const excess = keys.length - TILE_MAX;
-                for (let i = 0; i < excess; i++) await cache.delete(keys[i]);
+                await Promise.all(keys.slice(0, keys.length - TILE_MAX).map((k) => cache.delete(k)));
               }
             }).catch(() => {});
           }
           return res;
-        } catch (e) {
-          return new Response('', { status: 504 });
-        }
+        } catch { return new Response('', { status: 504 }); }
       })
     );
     return;
   }
 
-  // API: network-first, fallback to cache.
-  if (url.pathname.startsWith('/api/')) {
-    event.respondWith(
-      fetch(req).then((res) => {
-        if (res && res.status === 200) {
-          const copy = res.clone();
-          caches.open(DATA_CACHE).then((c) => c.put(req, copy)).catch(() => {});
-        }
-        return res;
-      }).catch(() => caches.match(req))
-    );
-    return;
-  }
+  event.respondWith(fetch(req).catch(() => new Response('', { status: 504 })));
 });

@@ -1,11 +1,17 @@
 /* CardinalMap — mobile-first PWA */
 :root {
-  --bg: #ffffff;
-  --bg-2: #f5f7fa;
-  --fg: #1a1a1a;
-  --fg-2: #555;
-  --accent: #0a84ff;
-  --accent-2: #ffd166;          /* warm yellow for dark-mode visibility */
+  --bg:    #ffffff;
+  --bg-2:  #f5f7fa;
+  --bg-3:  #e9edf2;            /* tertiary surface (search result hover, sheet header) */
+  --fg:    #0d1117;            /* primary text — near-black for AA on white */
+  --fg-2:  #4a5260;            /* secondary text — bumped from #555 for AA contrast */
+  --fg-3:  #6b7280;            /* tertiary text / placeholder */
+  --line:  #d6dbe1;            /* separators, sheet popups */
+  --accent:#0a84ff;
+  --accent-2:#ffd166;
+  --boundary-light:    #0a6cff;
+  --wedge-stroke-light:#0a6cff;
+  --wedge-fill-light:  rgba(10,108,255,0.10);
   --shadow: 0 6px 18px rgba(0,0,0,.18);
   --sheet-collapsed-h: 110px;
   --sheet-peek-h: 38vh;
@@ -14,14 +20,34 @@
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --radius: 14px;
-  --topbar-max: 720px;          /* desktop cap for the topbar/search */
+  --topbar-max: 720px;
 }
+
+/* ---------- DARK MODE ----------
+ * Aligned with Google Maps (#121212 base, #1E1E1E surface, #2A2A2A elevated,
+ * #E8EAED on-surface, #8AB4F8 blue tint, #FDD663 warning yellow) and Apple
+ * Maps (#0A84FF tint blue). Same palette applies via @media or via the
+ * [data-theme='dark'] attribute (manual override) so dark mode looks the
+ * same either way.
+ */
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #15171a; --bg-2: #1f2226; --fg: #f4f6f8; --fg-2: #aab1b8;
-    --shadow: 0 6px 18px rgba(0,0,0,.5);
+    --bg:    #121212;
+    --bg-2:  #1E1E1E;
+    --bg-3:  #2A2A2A;
+    --fg:    #E8EAED;
+    --fg-2:  #BDC1C6;
+    --fg-3:  #80868B;
+    --line:  #3C4043;
+    --accent:#8AB4F8;            /* Google blue tint — readable on dark */
+    --accent-2:#FDD663;          /* Google warning yellow */
+    --boundary-dark:     #FDD663;
+    --wedge-stroke-dark: #8AB4F8;
+    --wedge-fill-dark:   rgba(138,180,248,0.20);
+    --shadow: 0 8px 24px rgba(0,0,0,.65);
   }
 }
+
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; height: 100%; width: 100%; }
 body {
@@ -65,19 +91,57 @@ body {
   font: inherit;
   box-shadow: var(--shadow);
 }
+#search-input::placeholder { color: var(--fg-3); }
+
 .search-results {
   position: absolute; top: 46px; left: 0; right: 0;
   margin: 0; padding: 6px 0; list-style: none;
   background: var(--bg); border-radius: var(--radius);
   box-shadow: var(--shadow); max-height: 60vh; overflow: auto;
   z-index: 20;
+  color: var(--fg);
 }
 .search-results li {
   padding: 10px 14px; cursor: pointer;
-  border-bottom: 1px solid var(--bg-2);
+  border-bottom: 1px solid var(--line);
+  color: var(--fg);
 }
 .search-results li:last-child { border-bottom: 0; }
-.search-results li:active { background: var(--bg-2); }
+.search-results li:hover, .search-results li:active { background: var(--bg-3); }
+
+/* City / County segmented toggle — sits next to the search input */
+.seg-toggle {
+  display: inline-flex;
+  background: var(--bg);
+  border-radius: 999px;
+  box-shadow: var(--shadow);
+  height: 40px;
+  padding: 4px;
+  flex-shrink: 0;
+  gap: 2px;
+}
+.seg-btn {
+  background: transparent;
+  color: var(--fg-2);
+  border: none;
+  padding: 0 12px;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  min-width: 56px;
+  transition: background .15s ease, color .15s ease;
+}
+.seg-btn:hover { color: var(--fg); }
+.seg-btn.active {
+  background: var(--accent);
+  color: #ffffff;
+  box-shadow: 0 1px 3px rgba(0,0,0,.25);
+}
+@media (prefers-color-scheme: dark) {
+  .seg-btn.active { color: #0d1117; }   /* dark text on light accent in dark mode */
+}
 
 /* Compass — pinned to the left, above the bottom sheet */
 .compass {
@@ -93,11 +157,11 @@ body {
 .compass .dir {
   background: transparent; border: none; cursor: pointer;
   color: var(--fg); border-radius: 8px;
-  font-weight: 600; font-size: 11px;
+  font-weight: 700; font-size: 12px;
   display: flex; align-items: center; justify-content: center;
 }
 .compass .dir:active { background: var(--bg-2); }
-.compass .dir.active { background: var(--accent); color: white; }
+.compass .dir.active { background: var(--accent); color: #fff; }
 .compass .dir.center { font-size: 18px; color: var(--fg-2); }
 
 /* Bottom sheet — taller collapsed state so the first row is always visible */
@@ -113,83 +177,185 @@ body {
   touch-action: pan-y;
   max-width: var(--topbar-max);
   margin: 0 auto;
+  color: var(--fg);
 }
 .sheet.expanded { height: var(--sheet-full-h); }
 .sheet.peek { height: var(--sheet-peek-h); }
 .sheet-handle {
-  width: 44px; height: 4px; background: var(--fg-2); opacity: .35;
-  margin: 8px auto 8px auto; border-radius: 2px; cursor: pointer;
+  width: 44px; height: 4px; background: var(--fg-2); opacity: .55;
+  border-radius: 4px; margin: 8px auto 6px;
 }
 .sheet-header {
-  display: flex; align-items: center; justify-content: space-between; gap: 8px;
-  cursor: pointer;
+  display: flex; align-items: center; gap: 10px;
+  padding-bottom: 8px; border-bottom: 1px solid var(--line);
 }
-.sheet-toggle {
-  background: none; border: none; color: var(--fg-2); cursor: pointer;
-  padding: 4px 6px; border-radius: 6px; font-size: 18px; line-height: 1;
+.sheet-title {
+  font-weight: 700; font-size: 16px; color: var(--fg);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.sheet-toggle:active { background: var(--bg-2); }
-.sheet-title { font-weight: 600; font-size: 16px; }
-.sheet-subtitle { font-size: 12px; color: var(--fg-2); margin-top: 2px; }
+.sheet-subtitle {
+  font-size: 12px; color: var(--fg-2); margin-top: 2px;
+}
 .pill {
-  background: var(--bg-2); color: var(--fg);
-  padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 600;
+  background: var(--bg-3); color: var(--fg);
+  border-radius: 999px; padding: 4px 10px; font-size: 12px; font-weight: 600;
   flex-shrink: 0;
 }
-.sheet-list { list-style: none; padding: 0; margin: 8px 0 0 0; overflow-y: auto; flex: 1; }
+.sheet-toggle {
+  background: transparent; border: none; cursor: pointer; color: var(--fg-2);
+  width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 999px; font-size: 18px;
+}
+.sheet-toggle:hover  { background: var(--bg-2); color: var(--fg); }
+.sheet-toggle:active { background: var(--bg-3); }
+.sheet-list { list-style: none; margin: 0; padding: 8px 0 0 0; overflow: auto; flex: 1; }
 .sheet-list li {
-  display: flex; gap: 10px; padding: 10px 6px;
-  border-bottom: 1px solid var(--bg-2); cursor: pointer;
-  align-items: flex-start;
+  padding: 10px 4px; border-bottom: 1px solid var(--line);
+  display: flex; gap: 10px; align-items: flex-start; cursor: pointer;
+  color: var(--fg);
 }
 .sheet-list li:active { background: var(--bg-2); }
-.cat-dot {
-  width: 10px; height: 10px; border-radius: 999px; margin-top: 6px; flex-shrink: 0;
-}
-.poi-name { font-weight: 600; }
-.poi-meta { font-size: 12px; color: var(--fg-2); margin-top: 2px; }
-.poi-dist { font-size: 12px; color: var(--fg-2); margin-left: auto; white-space: nowrap; }
+.sheet-list .name { font-weight: 700; color: var(--fg); }
+.sheet-list .meta { font-size: 12px; color: var(--fg-2); margin-top: 2px; }
 
-.skeleton-row { display: flex; flex-direction: column; gap: 6px; padding: 10px 6px; }
-.skeleton { height: 14px; background: var(--bg-2); border-radius: 6px; }
-.skeleton.small { width: 60%; height: 10px; }
+/* Skeleton loaders */
+.skeleton-row { display: flex; gap: 10px; padding: 10px 4px; }
+.skeleton {
+  background: linear-gradient(90deg, var(--bg-2) 0%, var(--bg-3) 50%, var(--bg-2) 100%);
+  background-size: 200% 100%;
+  animation: skel 1.2s ease-in-out infinite;
+  height: 14px; border-radius: 6px; flex: 1;
+}
+.skeleton.small { flex: 0 0 40%; }
+@keyframes skel { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+/* MapLibre controls */
+.maplibregl-ctrl-top-right, .maplibregl-ctrl-top-left { display: none; }
+.maplibregl-ctrl-bottom-right { margin-bottom: calc(var(--sheet-collapsed-h) + var(--safe-bottom) + 8px); }
+.maplibregl-ctrl-attrib { background: rgba(0,0,0,.55); color: #fff; }
+.maplibregl-ctrl-attrib a { color: #d2d8df; }
+
+/* POI popup */
+.maplibregl-popup-content {
+  background: var(--bg);
+  color: var(--fg);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+  padding: 12px 14px;
+  font-size: 14px;
+  border: 1px solid var(--line);
+}
+.maplibregl-popup-tip {
+  border-top-color: var(--bg) !important;
+  border-bottom-color: var(--bg) !important;
+}
+.poi-popup { line-height: 1.4; }
+.poi-popup .popup-name  { font-weight: 700; font-size: 15px; margin-bottom: 2px; color: var(--fg); }
+.poi-popup .popup-brand { font-size: 12px; color: var(--fg-2); margin-bottom: 4px; }
+.poi-popup .popup-addr  { font-size: 13px; margin-bottom: 4px; color: var(--fg); }
+.poi-popup .popup-cat   { font-size: 11px; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 4px; font-weight: 700; }
+.poi-popup .popup-dist  { font-size: 12px; color: var(--fg-2); margin-bottom: 4px; }
+.poi-popup .popup-hours { font-size: 12px; margin-bottom: 4px; color: var(--fg); }
+.poi-popup a { color: var(--accent); text-decoration: none; font-weight: 600; }
+.poi-popup a:hover { text-decoration: underline; }
 
 /* Toast */
 .toast {
   position: fixed; left: 50%; transform: translateX(-50%);
-  bottom: calc(var(--sheet-collapsed-h) + var(--safe-bottom) + 130px);
-  background: rgba(0,0,0,.85); color: white;
-  padding: 10px 14px; border-radius: 999px;
-  z-index: 30; font-size: 13px; max-width: 90vw;
+  bottom: calc(var(--sheet-collapsed-h) + var(--safe-bottom) + 16px);
+  background: var(--fg); color: var(--bg);
+  padding: 8px 14px; border-radius: 999px;
+  font-size: 13px; box-shadow: var(--shadow);
+  z-index: 30; max-width: 80vw; text-align: center;
 }
 
-/* MapLibre popup theming + POI popup content */
-.maplibregl-popup-content {
-  background: var(--bg) !important;
-  color: var(--fg) !important;
-  border-radius: 12px !important;
-  padding: 12px 14px !important;
-  box-shadow: var(--shadow) !important;
+@media (min-width: 800px) {
+  .sheet { left: 50%; transform: translateX(-50%); width: var(--topbar-max); }
+  .maplibregl-ctrl-bottom-right { right: calc(50vw - var(--topbar-max)/2 + 8px) !important; }
 }
-.maplibregl-popup-close-button {
-  color: var(--fg-2) !important;
-  font-size: 18px !important;
-  padding: 0 6px !important;
-}
-.poi-popup .popup-name { font-weight: 700; font-size: 15px; margin-bottom: 2px; }
-.poi-popup .popup-brand { font-size: 12px; color: var(--fg-2); margin-bottom: 4px; }
-.poi-popup .popup-addr { font-size: 13px; margin-bottom: 4px; }
-.poi-popup .popup-cat { font-size: 11px; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 4px; font-weight: 600; }
-.poi-popup .popup-dist { font-size: 12px; color: var(--fg-2); margin-bottom: 4px; }
-.poi-popup .popup-hours { font-size: 12px; margin-bottom: 4px; }
-.poi-popup a { color: var(--accent); text-decoration: none; }
-.maplibregl-ctrl-attrib { font-size: 10px !important; }
 
-/* Move MapLibre controls away from the topbar (which has the style/locate buttons). */
-.maplibregl-ctrl-top-right, .maplibregl-ctrl-top-left { display: none; }
-.maplibregl-ctrl-bottom-right { margin-bottom: calc(var(--sheet-collapsed-h) + var(--safe-bottom) + 8px); }
-
-/* Desktop: cap widths and add gentle shadow */
-@media (min-width: 900px) {
-  .topbar-wrap { box-shadow: var(--shadow); border-radius: 999px; background: transparent; }
+/* === Modular v2.0.0 additions === */
+/* data-theme attribute overrides OS preference; used by ThemeManager. */
+[data-theme='dark'] {
+  --bg:    #121212;
+  --bg-2:  #1E1E1E;
+  --bg-3:  #2A2A2A;
+  --fg:    #E8EAED;
+  --fg-2:  #BDC1C6;
+  --fg-3:  #80868B;
+  --line:  #3C4043;
+  --accent:#8AB4F8;
+  --accent-2:#FDD663;
+  --boundary-dark:     #FDD663;
+  --wedge-stroke-dark: #8AB4F8;
+  --wedge-fill-dark:   rgba(138,180,248,0.20);
+  --shadow: 0 8px 24px rgba(0,0,0,.65);
 }
+[data-theme='light'] {
+  --bg:    #ffffff;
+  --bg-2:  #f5f7fa;
+  --bg-3:  #e9edf2;
+  --fg:    #0d1117;
+  --fg-2:  #4a5260;
+  --fg-3:  #6b7280;
+  --line:  #d6dbe1;
+  --accent:#0a84ff;
+  --accent-2:#ffd166;
+  --boundary-light:    #0a6cff;
+  --wedge-stroke-light:#0a6cff;
+  --wedge-fill-light:  rgba(10,108,255,0.10);
+  --shadow: 0 6px 18px rgba(0,0,0,.18);
+}
+
+/* Bug 3 fix: hidden sheet state for full-page city view */
+.sheet.hidden,
+[data-state='hidden'] {
+  transform: translateY(110%);
+  pointer-events: none;
+}
+
+/* Bug 7 fix: floating back-to-city button visible only when viewMode !== city */
+#back-to-city {
+  position: fixed;
+  top: calc(var(--safe-top) + 64px);
+  right: 12px;
+  z-index: 9;
+  width: 44px; height: 44px; border-radius: 50%;
+  background: var(--accent); color: #fff; border: none;
+  font-size: 20px; cursor: pointer;
+  display: none; align-items: center; justify-content: center;
+  box-shadow: var(--shadow);
+  pointer-events: auto;
+}
+#back-to-city:hover { transform: scale(1.05); }
+
+/* Bug 3 fix: expand-sheet topbar button (sibling of style-toggle) */
+#expand-sheet {
+  background: var(--bg); color: var(--fg); border: none; border-radius: 999px;
+  width: 40px; height: 40px; display: inline-flex; align-items: center; justify-content: center;
+  box-shadow: var(--shadow); cursor: pointer; flex-shrink: 0;
+  font-size: 18px;
+}
+#expand-sheet:active { transform: scale(.96); }
+
+/* debug HUD */
+#debug-pill {
+  position: fixed; bottom: calc(var(--sheet-collapsed-h) + 8px); left: 12px; z-index: 100;
+  background: var(--bg); color: var(--fg-2);
+  padding: 4px 8px; border-radius: 6px; font-size: 11px; cursor: pointer;
+  border: 1px solid var(--line);
+  font-family: monospace;
+}
+#debug-panel {
+  position: fixed; bottom: calc(var(--sheet-collapsed-h) + 36px); left: 12px; z-index: 100;
+  background: var(--bg); color: var(--fg);
+  padding: 12px; border-radius: 8px; box-shadow: var(--shadow);
+  max-width: 360px; max-height: 60vh; overflow: auto;
+  font-size: 11px;
+  border: 1px solid var(--line);
+}
+#debug-panel pre {
+  background: var(--bg-2); padding: 6px; border-radius: 4px;
+  overflow: auto; margin: 6px 0; color: var(--fg);
+}
+#debug-panel h4 { margin: 0 0 8px; color: var(--fg); }
