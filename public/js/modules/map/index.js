@@ -1,4 +1,11 @@
-// map module - MapLibre instance, registry, ensureLayers guarded on style. v1.5.0
+// map module - MapLibre instance, registry, ensureLayers guarded on style. v1.6.0
+// v1.6.0: POI pins recolored by category (fuel=orange, convenience=blue,
+//          lottery=purple) — modern map style instead of the previous opaque
+//          black/near-white dots. Stroke narrowed to 2px and opacity softened
+//          to .92 for a less heavy appearance. Colors match the per-category
+//          colors defined in config/poi-categories.json. Annotate no longer
+//          stamps markerColor on each feature; the paint expression reads
+//          category_id directly.
 // v1.5.0: AttributionControl starts collapsed — just a small "i" icon in the
 //          bottom-right corner. Click expands to show full "OpenFreeMap ©
 //          OpenMapTiles Data from OpenStreetMap". Previously the control
@@ -14,7 +21,7 @@
 //          are scoped to basemap layers only — REGISTRY layers (boundary/wedge/pois)
 //          keep their own theme-driven colors via paintsForTheme().
 export const name = 'map';
-export const version = '1.5.0';
+export const version = '1.6.0';
 export const deps = [];
 
 const STYLE_URLS = {
@@ -44,12 +51,21 @@ const REGISTRY = {
       'line-color': ['get', 'lineColor'], 'line-width': 2, 'line-dasharray': [2, 1],
     } },
     { id: 'poi-circle', type: 'circle', source: 'pois', minzoom: 6, paint: {
-      'circle-radius': ['interpolate', ['linear'], ['zoom'], 8, 7, 12, 10, 16, 13],
-      'circle-color': ['get', 'markerColor'],
+      // Category-driven pin colors (modern map style). Falls back to a
+      // generic accent blue for unknown category_ids.
+      'circle-color': [
+        'match', ['get', 'category_id'],
+        'fuel',         '#e67e22',
+        'convenience',  '#1f7aec',
+        'lottery_shop', '#9b59b6',
+        'lottery_yes',  '#8e44ad',
+        '#0a6cff'
+      ],
+      'circle-radius': ['interpolate', ['linear'], ['zoom'], 8, 5, 12, 8, 16, 11],
       'circle-stroke-color': '#ffffff',
-      'circle-stroke-width': 3,
-      'circle-opacity': 1.0,
-      'circle-stroke-opacity': 1.0,
+      'circle-stroke-width': 2,
+      'circle-opacity': 0.95,
+      'circle-stroke-opacity': 0.9,
     } },
     { id: 'poi-label', type: 'symbol', source: 'pois', minzoom: 9, layout: {
       'text-field': ['get', 'name'], 'text-size': 12, 'text-offset': [0, 1.4],
