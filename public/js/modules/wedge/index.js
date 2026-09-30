@@ -1,22 +1,35 @@
-// wedge module - state-derived wedge FC, clips boundary by N/NE/E/SE/S/SW/W/NW pie slice. v1.0.0
+// wedge module - state-derived wedge FC, clips boundary by N/NE/E/SE/S/SW/W/NW pie slice. v1.1.0
+// v1.1.0: proper 8-wind compass — each direction spans exactly 45° (halfWidth 22.5°),
+//          centered on its true bearing (N=0°, NE=45°, E=90°, SE=135°, S=180°,
+//          SW=225°, W=270°, NW=315°). N spans 337.5°→22.5°, NE spans 22.5°→67.5°,
+//          etc. — no overlap between adjacent directions. Centroid uses bbox-center
+//          of the largest outer ring (more stable than raw vertex averaging which
+//          biases toward dense-coord parts of the polygon).
 export const name = 'wedge';
-export const version = '1.0.0';
+export const version = '1.1.0';
 export const deps = ['map', 'state', 'events'];
 
 const CLIP = (typeof globalThis !== 'undefined' && globalThis.polygonClipping) || null;
 
 const BEARINGS = { N: 0, NE: 45, E: 90, SE: 135, S: 180, SW: 225, W: 270, NW: 315 };
 
-function buildSlicePolygon(center, dir, halfWidthDeg = 45) {
+function ringToPoly(ring) { return [ring.map(([x, y]) => [x, y])]; }
+function polyToRing(poly) { return poly[0]; }
+
+function buildSlicePolygon(center, dir, halfWidthDeg = 22.5) {
   const bearing = BEARINGS[dir] ?? 0;
+  // wedge spanning (bearing +/- halfWidth) around the city's centroid
   const a1 = ((bearing - halfWidthDeg) + 360) % 360;
   const a2 = ((bearing + halfWidthDeg) + 360) % 360;
   const span = (a2 - a1 + 360) % 360;
+  // box: large radius
   const R = 10;
   const ring = [[center[0], center[1]]];
+  // sample edges at 1deg steps
   const steps = Math.max(2, Math.ceil(span));
   for (let i = 0; i <= steps; i++) {
     const deg = (a1 + (span * i) / steps) * Math.PI / 180;
+    // approximate dx/dy in degrees using local scale (approx)
     const dx = R * Math.sin(deg);
     const dy = R * Math.cos(deg);
     ring.push([center[0] + dx, center[1] + dy]);
@@ -26,13 +39,33 @@ function buildSlicePolygon(center, dir, halfWidthDeg = 45) {
 }
 
 function centroidOf(fc) {
-  let sx = 0, sy = 0, n = 0;
-  const acc = (coords) => {
-    if (typeof coords[0] === 'number') { sx += coords[0]; sy += coords[1]; n++; return; }
-    coords.forEach(acc);
-  };
-  fc.features.forEach(f => acc(f.geometry.coordinates));
-  return n ? [sx / n, sy / n] : [0, 0];
+  if (!fc?.features?.length) return [0, 0];
+  // bbox-center of the largest outer ring — more stable than vertex-averaging
+  // which biases toward parts of the polygon that happen to have dense coords.
+  let bestRing = null;
+  let bestArea = -1;
+  for (const f of fc.features) {
+    const g = f.geometry;
+    if (!g) continue;
+    const polys = g.type === 'Polygon' ? [g.coordinates]
+                : g.type === 'MultiPolygon' ? g.coordinates
+                : [];
+    for (const poly of polys) {
+      const ring = poly?.[0];
+      if (!ring || ring.length < 4) continue;
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      for (const [x, y] of ring) {
+        if (x < minX) minX = x; if (x > maxX) maxX = x;
+        if (y < minY) minY = y; if (y > maxY) maxY = y;
+      }
+      const area = (maxX - minX) * (maxY - minY);
+      if (area > bestArea) { bestArea = area; bestRing = ring; }
+    }
+  }
+  if (!bestRing) return [0, 0];
+  let sx = 0, sy = 0;
+  for (const [x, y] of bestRing) { sx += x; sy += y; }
+  return [sx / bestRing.length, sy / bestRing.length];
 }
 
 function featureFromPolygon(coords, props) {

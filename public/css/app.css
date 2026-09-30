@@ -9,14 +9,10 @@
   --line:  #d6dbe1;            /* separators, sheet popups */
   --accent:#0a84ff;
   --accent-2:#ffd166;
-  --boundary-light:    #0a6cff;
-  --wedge-stroke-light:#0a6cff;
-  --wedge-fill-light:  rgba(10,108,255,0.10);
   --shadow: 0 6px 18px rgba(0,0,0,.18);
-  --sheet-collapsed-h: 56px;
-  --sheet-peek-h: 140px;
+  --sheet-collapsed-h: 110px;
+  --sheet-peek-h: 38vh;
   --sheet-full-h: 82vh;
-  --sheet-mini-h: 56px;
   --topbar-h: 56px;
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
@@ -25,26 +21,22 @@
 }
 
 /* ---------- DARK MODE ----------
- * Aligned with Google Maps (#121212 base, #1E1E1E surface, #2A2A2A elevated,
- * #E8EAED on-surface, #8AB4F8 blue tint, #FDD663 warning yellow) and Apple
- * Maps (#0A84FF tint blue). Same palette applies via @media or via the
- * [data-theme='dark'] attribute (manual override) so dark mode looks the
- * same either way.
+ * Bumped fg, fg-2 to higher contrast against the dark background so text is
+ * legible everywhere (sheet, popup, compass, search results). Previously
+ * fg=#f4f6f8 / fg-2=#aab1b8 — readable, but the popup against the map
+ * (where the bg behind it varies) was muddy.
  */
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg:    #121212;
-    --bg-2:  #1E1E1E;
-    --bg-3:  #2A2A2A;
-    --fg:    #E8EAED;
-    --fg-2:  #BDC1C6;
-    --fg-3:  #80868B;
-    --line:  #3C4043;
-    --accent:#8AB4F8;            /* Google blue tint — readable on dark */
-    --accent-2:#FDD663;          /* Google warning yellow */
-    --boundary-dark:     #FDD663;
-    --wedge-stroke-dark: #8AB4F8;
-    --wedge-fill-dark:   rgba(138,180,248,0.20);
+    --bg:    #0d1117;
+    --bg-2:  #1b2027;
+    --bg-3:  #252b34;
+    --fg:    #f7f9fb;            /* primary text — near-white */
+    --fg-2:  #d2d8df;            /* secondary text — much brighter than before */
+    --fg-3:  #9aa3ad;
+    --line:  #30363d;
+    --accent:#7cc4ff;            /* brighter accent so it pops against dark */
+    --accent-2:#ffd166;
     --shadow: 0 8px 24px rgba(0,0,0,.65);
   }
 }
@@ -59,8 +51,7 @@ body {
   overscroll-behavior: none;
   -webkit-tap-highlight-color: transparent;
 }
-#map { position: fixed; inset: 0; z-index: 0; transition: opacity .2s ease; }
-#map.theme-fading { opacity: 0.3; }
+#map { position: fixed; inset: 0; z-index: 0; }
 
 /* Topbar — capped on desktop so search doesn't span the whole screen */
 .topbar {
@@ -148,7 +139,6 @@ body {
 /* Compass — pinned to the left, above the bottom sheet */
 .compass {
   position: fixed; left: 12px; bottom: calc(var(--sheet-collapsed-h) + var(--safe-bottom) + 12px);
-  transition: bottom .25s ease;
   z-index: 5; display: grid;
   grid-template-columns: 36px 36px 36px;
   grid-template-rows: 36px 36px 36px;
@@ -172,10 +162,10 @@ body {
   position: fixed; left: 0; right: 0; bottom: 0;
   background: var(--bg); border-top-left-radius: 18px; border-top-right-radius: 18px;
   box-shadow: var(--shadow);
-  height: var(--sheet-mini-h);
+  height: var(--sheet-collapsed-h);
   transition: height .25s ease;
   z-index: 6;
-  padding: 0 14px calc(var(--safe-bottom) + 6px) 14px;
+  padding: 0 14px calc(var(--safe-bottom) + 14px) 14px;
   display: flex; flex-direction: column;
   touch-action: pan-y;
   max-width: var(--topbar-max);
@@ -184,12 +174,6 @@ body {
 }
 .sheet.expanded { height: var(--sheet-full-h); }
 .sheet.peek { height: var(--sheet-peek-h); }
-.sheet.mini { height: var(--sheet-mini-h); }
-.sheet.mini .sheet-list { display: none; }
-.sheet.mini .sheet-subtitle { display: none; }
-.sheet.collapsed { height: var(--sheet-collapsed-h); }
-.sheet.collapsed .sheet-list,
-.sheet.collapsed .sheet-subtitle { display: none; }
 .sheet-handle {
   width: 44px; height: 4px; background: var(--fg-2); opacity: .55;
   border-radius: 4px; margin: 8px auto 6px;
@@ -227,31 +211,6 @@ body {
 .sheet-list .name { font-weight: 700; color: var(--fg); }
 .sheet-list .meta { font-size: 12px; color: var(--fg-2); margin-top: 2px; }
 
-/* Dark-mode MapLibre basemap contrast overrides
- * Google/Apple Maps dark uses:
- *   water: dark blue/grey (#0d1b2a / #1a2a3a)
- *   background: very dark grey (#1a1a1a)
- *   roads: lighter than background so they stand out (#2d2d2d -> #3c4043)
- *   labels: high contrast white with strong dark halo
- * OpenFreeMap's dark_liberty has streets and labels both at low contrast
- * which makes them merge; we boost road fill via paint and add a strong
- * halo on labels.
- */
-[data-theme='dark'] .maplibregl-canvas-container .maplibregl-canvas { filter: brightness(0.85) contrast(1.15); }
-
-/* POI popup directions button */
-.popup-actions {
-  display: flex; gap: 6px; margin-top: 8px;
-}
-.popup-actions a {
-  flex: 1; text-align: center;
-  padding: 6px 10px; border-radius: 8px;
-  background: var(--accent); color: #fff;
-  font-size: 12px; font-weight: 600;
-  text-decoration: none;
-}
-.popup-actions a.alt { background: var(--bg-3); color: var(--fg); }
-
 /* Skeleton loaders */
 .skeleton-row { display: flex; gap: 10px; padding: 10px 4px; }
 .skeleton {
@@ -264,25 +223,8 @@ body {
 @keyframes skel { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 
 /* MapLibre controls */
-.maplibregl-ctrl-top-left { display: none; }
-.maplibregl-ctrl-top-right {
-  top: calc(var(--safe-top) + 64px);
-  right: 12px;
-}
+.maplibregl-ctrl-top-right, .maplibregl-ctrl-top-left { display: none; }
 .maplibregl-ctrl-bottom-right { margin-bottom: calc(var(--sheet-collapsed-h) + var(--safe-bottom) + 8px); }
-.maplibregl-ctrl-group {
-  background: var(--bg) !important;
-  box-shadow: var(--shadow) !important;
-  border-radius: 12px !important;
-  overflow: hidden;
-}
-.maplibregl-ctrl-zoom-in, .maplibregl-ctrl-zoom-out {
-  background-color: var(--bg) !important;
-  color: var(--fg) !important;
-}
-.maplibregl-ctrl-zoom-in:hover, .maplibregl-ctrl-zoom-out:hover {
-  background-color: var(--bg-3) !important;
-}
 .maplibregl-ctrl-attrib { background: rgba(0,0,0,.55); color: #fff; }
 .maplibregl-ctrl-attrib a { color: #d2d8df; }
 
@@ -320,93 +262,45 @@ body {
   z-index: 30; max-width: 80vw; text-align: center;
 }
 
-@media (min-width: 800px) {
-  .sheet { left: 50%; transform: translateX(-50%); width: var(--topbar-max); }
-  .maplibregl-ctrl-bottom-right { right: calc(50vw - var(--topbar-max)/2 + 8px) !important; }
-}
-
-/* === Modular v2.0.0 additions === */
-/* data-theme attribute overrides OS preference; used by ThemeManager. */
-[data-theme='dark'] {
-  --bg:    #121212;
-  --bg-2:  #1E1E1E;
-  --bg-3:  #2A2A2A;
-  --fg:    #E8EAED;
-  --fg-2:  #BDC1C6;
-  --fg-3:  #80868B;
-  --line:  #3C4043;
-  --accent:#8AB4F8;
-  --accent-2:#FDD663;
-  --boundary-dark:     #FDD663;
-  --wedge-stroke-dark: #8AB4F8;
-  --wedge-fill-dark:   rgba(138,180,248,0.20);
-  --shadow: 0 8px 24px rgba(0,0,0,.65);
-}
-[data-theme='light'] {
-  --bg:    #ffffff;
-  --bg-2:  #f5f7fa;
-  --bg-3:  #e9edf2;
-  --fg:    #0d1117;
-  --fg-2:  #4a5260;
-  --fg-3:  #6b7280;
-  --line:  #d6dbe1;
-  --accent:#0a84ff;
-  --accent-2:#ffd166;
-  --boundary-light:    #0a6cff;
-  --wedge-stroke-light:#0a6cff;
-  --wedge-fill-light:  rgba(10,108,255,0.10);
-  --shadow: 0 6px 18px rgba(0,0,0,.18);
-}
-
-/* Bug 3 fix: hidden sheet state for full-page city view */
-.sheet.hidden,
-[data-state='hidden'] {
-  transform: translateY(110%);
-  pointer-events: none;
-}
-
-/* Bug 7 fix: floating back-to-city button visible only when viewMode !== city */
+/* Dynamic elements injected by JS modules */
 #back-to-city {
-  position: fixed;
-  top: calc(var(--safe-top) + 64px);
-  right: 12px;
-  z-index: 9;
+  /* sits BELOW the MapLibre NavigationControl (which is ~64px tall + 10px gap
+     from top-right). Top:140px clears the zoom +/- buttons entirely. */
+  position: absolute; top: 140px; right: 16px; z-index: 9;
   width: 44px; height: 44px; border-radius: 50%;
-  background: var(--accent); color: #fff; border: none;
-  font-size: 20px; cursor: pointer;
-  display: none; align-items: center; justify-content: center;
+  background: var(--accent); color: #fff; border: none; font-size: 18px;
+  cursor: pointer; display: none; align-items: center; justify-content: center;
   box-shadow: var(--shadow);
-  pointer-events: auto;
+  transition: opacity .18s ease, transform .18s ease;
 }
+#back-to-city[style*="flex"] { opacity: 1; }
 #back-to-city:hover { transform: scale(1.05); }
 
-/* Bug 3 fix: expand-sheet topbar button (sibling of style-toggle) */
-#expand-sheet {
-  background: var(--bg); color: var(--fg); border: none; border-radius: 999px;
-  width: 40px; height: 40px; display: inline-flex; align-items: center; justify-content: center;
-  box-shadow: var(--shadow); cursor: pointer; flex-shrink: 0;
-  font-size: 18px;
+#toast-host {
+  position: absolute; top: 60px; right: 16px; z-index: 50;
+  display: flex; flex-direction: column; gap: 6px;
 }
-#expand-sheet:active { transform: scale(.96); }
+.toast.visible { opacity: 1; transform: translateY(0); }
+.toast-error { border-left: 4px solid #e53935; }
+.toast-info  { border-left: 4px solid var(--accent); }
 
-/* debug HUD */
 #debug-pill {
-  position: fixed; bottom: calc(var(--sheet-collapsed-h) + 8px); left: 12px; z-index: 100;
+  position: absolute; bottom: 12px; left: 12px; z-index: 100;
   background: var(--bg); color: var(--fg-2);
   padding: 4px 8px; border-radius: 6px; font-size: 11px; cursor: pointer;
   border: 1px solid var(--line);
-  font-family: monospace;
 }
 #debug-panel {
-  position: fixed; bottom: calc(var(--sheet-collapsed-h) + 36px); left: 12px; z-index: 100;
+  position: absolute; bottom: 36px; left: 12px; z-index: 100;
   background: var(--bg); color: var(--fg);
   padding: 12px; border-radius: 8px; box-shadow: var(--shadow);
   max-width: 360px; max-height: 60vh; overflow: auto;
   font-size: 11px;
-  border: 1px solid var(--line);
 }
-#debug-panel pre {
-  background: var(--bg-2); padding: 6px; border-radius: 4px;
-  overflow: auto; margin: 6px 0; color: var(--fg);
+#debug-panel pre { background: var(--bg-2); padding: 6px; border-radius: 4px; overflow: auto; color: var(--fg); }
+#debug-panel h4 { margin: 0 0 8px; }
+
+@media (min-width: 800px) {
+  .sheet { left: 50%; transform: translateX(-50%); width: var(--topbar-max); }
+  .maplibregl-ctrl-bottom-right { right: calc(50vw - var(--topbar-max)/2 + 8px) !important; }
 }
-#debug-panel h4 { margin: 0 0 8px; color: var(--fg); }

@@ -1,4 +1,6 @@
-// map module - MapLibre instance, registry, ensureLayers guarded on style. v1.3.0
+// map module - MapLibre instance, registry, ensureLayers guarded on style. v1.4.0
+// v1.4.0: POI pins more prominent — radius 7→10→13 (was 6→8→10), stroke 3px,
+//          minzoom=6 so pins appear earlier.
 // v1.2.0: larger POI pins (radius 8), smooth theme swap via .theme-fading overlay,
 //          Google/Apple-style dark CSS palette already in app.css.
 // v1.3.0: apply Google/Apple-style paint overrides directly on the basemap layers
@@ -7,7 +9,7 @@
 //          are scoped to basemap layers only — REGISTRY layers (boundary/wedge/pois)
 //          keep their own theme-driven colors via paintsForTheme().
 export const name = 'map';
-export const version = '1.3.0';
+export const version = '1.4.0';
 export const deps = [];
 
 const STYLE_URLS = {
@@ -36,20 +38,22 @@ const REGISTRY = {
     { id: 'wedge-line', type: 'line', source: 'wedge', paint: {
       'line-color': ['get', 'lineColor'], 'line-width': 2, 'line-dasharray': [2, 1],
     } },
-    { id: 'poi-circle', type: 'circle', source: 'pois', paint: {
-      'circle-radius': ['interpolate', ['linear'], ['zoom'], 8, 6, 12, 8, 16, 10],
+    { id: 'poi-circle', type: 'circle', source: 'pois', minzoom: 6, paint: {
+      'circle-radius': ['interpolate', ['linear'], ['zoom'], 8, 7, 12, 10, 16, 13],
       'circle-color': ['get', 'markerColor'],
       'circle-stroke-color': '#ffffff',
-      'circle-stroke-width': 2,
-      'circle-opacity': 0.95,
+      'circle-stroke-width': 3,
+      'circle-opacity': 1.0,
+      'circle-stroke-opacity': 1.0,
     } },
-    { id: 'poi-label', type: 'symbol', source: 'pois', layout: {
-      'text-field': ['get', 'name'], 'text-size': 12, 'text-offset': [0, 1.2],
+    { id: 'poi-label', type: 'symbol', source: 'pois', minzoom: 9, layout: {
+      'text-field': ['get', 'name'], 'text-size': 12, 'text-offset': [0, 1.4],
       'text-anchor': 'top', 'text-allow-overlap': false,
+      'text-font': ['Open Sans Regular', 'Arial Unicode MS Regular'],
     }, paint: {
       'text-color': ['coalesce', ['get', 'labelColor'], '#222'],
       'text-halo-color': ['coalesce', ['get', 'labelHaloColor'], 'rgba(255,255,255,0.85)'],
-      'text-halo-width': 1.4,
+      'text-halo-width': 1.6,
     } },
   ],
 };

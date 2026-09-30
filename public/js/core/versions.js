@@ -1,4 +1,6 @@
 // versions.js - aggregated module versions. v1.0.0
+// v1.0.1: APP_VERSION bumped to 2.3.0 (wedge 1.1.0, city 1.1.0,
+//          compass 1.1.0, api 1.1.0, map 1.4.0).
 import { name as apiN, version as apiV } from '../modules/api/index.js';
 import { name as themeN, version as themeV } from '../modules/theme/index.js';
 import { name as mapN, version as mapV } from '../modules/map/index.js';
@@ -17,7 +19,7 @@ import { name as dbgN, version as dbgV } from '../modules/debug-hud/index.js';
 import { name as backN, version as backV } from '../modules/back-to-city/index.js';
 
 export const CORE_VERSION = '1.0.0';
-export const APP_VERSION = '2.2.0';
+export const APP_VERSION = '2.3.0';
 export const MODULES = {
   [apiN]: apiV,
   [themeN]: themeV,
@@ -27,13 +29,10 @@ export const MODULES = {
   [dirN]: dirV,
   [poiN]: poiV,
   [searchN]: searchV,
-  search: '1.1.0',
   [geoN]: geoV,
   [sheetN]: sheetV,
-  sheet: '1.1.0',
   [compN]: compV,
   [lvlN]: lvlV,
-  level: '1.1.0',
   [stN]: stV,
   [toastN]: toastV,
   [dbgN]: dbgV,

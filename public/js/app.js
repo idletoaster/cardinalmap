@@ -66,7 +66,17 @@ window.addEventListener('DOMContentLoaded', () => {
       const res = await fetch(url);
       if (!res.ok) throw new Error('locate ' + res.status);
       const data = await res.json();
-      const feature = { id: osmId, osm_type: osmType, properties: { name: r.name } };
+      // Include lat/lon + osm ids on the feature so downstream modules
+      // (city.autoCountyFromCity, etc.) can re-query the same place without
+      // needing to re-search.
+      const feature = {
+        id: osmId,
+        osm_type: osmType,
+        osm_id: osmId,
+        lat: r.lat,
+        lon: r.lon,
+        properties: { name: r.name },
+      };
       const bg = data.boundary_geojson;
       const fc = bg && bg.type === 'FeatureCollection'
         ? bg
