@@ -1,4 +1,10 @@
-// map module - MapLibre instance, registry, ensureLayers guarded on style. v1.8.4
+// map module - MapLibre instance, registry, ensureLayers guarded on style. v1.8.5
+// v1.8.5: theme:change listener for applyBasemapOverrides now listens to
+//          BOTH 'styledata' and 'idle' (MapLibre's styledata fires BEFORE
+//          isStyleLoaded() returns true, so a single once('styledata')
+//          chain recurses without ever entering the override branch).
+//          Also a 600ms setTimeout fallback. Fixes the "labels stay at
+//          basemap defaults" bug on public-domain cold loads.
 // v1.8.4: Vibrant hue-distinct dark-mode label palette. Previous palette was
 //          all shades of grey/white (#ffffff, #f0f2f5, #d0d4dc, #c0c7d2,
 //          #b8d4ff, #e2e6ec, #a8afb8) which blurred into the bright grey
@@ -54,7 +60,7 @@
 //          are scoped to basemap layers only — REGISTRY layers (boundary/wedge/pois)
 //          keep their own theme-driven colors via paintsForTheme().
 export const name = 'map';
-export const version = '1.8.4';
+export const version = '1.8.5';
 export const deps = [];
 
 const STYLE_URLS = {
@@ -538,10 +544,34 @@ export function init({ app, events, log }) {
 
   // Re-apply basemap overrides on theme change so they follow CSS without
   // needing a full setStyle() round-trip.
+  //
+  // v1.8.5 — MapLibre's `styledata` event fires BEFORE the style is fully
+  //          loaded (`isStyleLoaded()` returns false at the moment the
+  //          callback runs). Naive `map.once('styledata', ...)` chains into
+  //          infinite recursion where every styledata fires while
+  //          isStyleLoaded is still false, and applyBasemapOverrides never
+  //          actually executes. Fix: also listen for `idle` (fires after the
+  //          map is fully settled), with a 200ms setTimeout fallback if both
+  //          events fail to deliver a loaded style.
   events.on('theme:change', ({ name }) => {
     if (!map) return;
-    if (map.isStyleLoaded()) applyBasemapOverrides(map, name);
-    else map.once('styledata', () => applyBasemapOverrides(map, name));
+    if (map.isStyleLoaded()) {
+      applyBasemapOverrides(map, name);
+      return;
+    }
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      map.off('styledata', onStyledata);
+      map.off('idle', onIdle);
+      applyBasemapOverrides(map, name);
+    };
+    const onStyledata = () => { if (map.isStyleLoaded()) finish(); };
+    const onIdle      = () => { if (map.isStyleLoaded()) finish(); };
+    map.on('styledata', onStyledata);
+    map.on('idle', onIdle);
+    setTimeout(finish, 600);   // hard fallback if neither event delivers
   });
 
   log?.('map ready');

@@ -1,4 +1,18 @@
 // versions.js - aggregated module versions. v1.0.0
+// v1.1.1: APP_VERSION bumped to 2.5.9 — CRITICAL BUGFIX: dark-mode label
+//          overrides (map 1.8.4's vibrant palette) silently did nothing on
+//          cold public-domain loads. Root cause: MapLibre's `styledata`
+//          event fires BEFORE `isStyleLoaded()` returns true, so the
+//          `map.once('styledata', ...)` chain recursed infinitely without
+//          ever entering the override branch. The test environment
+//          happened to hit `isStyleLoaded=true` on first emit; production
+//          never did, so the palette was being skipped entirely on every
+//          cold page load. Fix (map 1.8.5): the theme:change listener now
+//          listens to BOTH `styledata` AND `idle` events with a 600ms
+//          setTimeout fallback, guarded by a `done` flag so the override
+//          applies exactly once per theme change. Verified visually on
+//          public domain — city/town/suburb/highway labels now render in
+//          the vibrant hue-distinct palette on the very first paint.
 // v1.1.0: APP_VERSION bumped to 2.5.8 — vibrant hue-distinct dark-mode label
 //          palette. map 1.8.4 gives each label class its own hue so labels
 //          pop as a separate visual layer from the grey road casings:
@@ -70,8 +84,8 @@ import { name as toastN, version as toastV } from '../modules/toast/index.js';
 import { name as dbgN, version as dbgV } from '../modules/debug-hud/index.js';
 import { name as backN, version as backV } from '../modules/back-to-city/index.js';
 
-export const CORE_VERSION = '1.0.0';
-export const APP_VERSION = '2.5.8';
+export const CORE_VERSION = '1.0.1';
+export const APP_VERSION = '2.5.9';
 export const MODULES = {
   [apiN]: apiV,
   [themeN]: themeV,
