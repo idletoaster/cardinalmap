@@ -13,9 +13,10 @@
   --wedge-stroke-light:#0a6cff;
   --wedge-fill-light:  rgba(10,108,255,0.10);
   --shadow: 0 6px 18px rgba(0,0,0,.18);
-  --sheet-collapsed-h: 110px;
-  --sheet-peek-h: 38vh;
+  --sheet-collapsed-h: 56px;
+  --sheet-peek-h: 140px;
   --sheet-full-h: 82vh;
+  --sheet-mini-h: 56px;
   --topbar-h: 56px;
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
@@ -58,7 +59,8 @@ body {
   overscroll-behavior: none;
   -webkit-tap-highlight-color: transparent;
 }
-#map { position: fixed; inset: 0; z-index: 0; }
+#map { position: fixed; inset: 0; z-index: 0; transition: opacity .2s ease; }
+#map.theme-fading { opacity: 0.3; }
 
 /* Topbar — capped on desktop so search doesn't span the whole screen */
 .topbar {
@@ -146,6 +148,7 @@ body {
 /* Compass — pinned to the left, above the bottom sheet */
 .compass {
   position: fixed; left: 12px; bottom: calc(var(--sheet-collapsed-h) + var(--safe-bottom) + 12px);
+  transition: bottom .25s ease;
   z-index: 5; display: grid;
   grid-template-columns: 36px 36px 36px;
   grid-template-rows: 36px 36px 36px;
@@ -169,10 +172,10 @@ body {
   position: fixed; left: 0; right: 0; bottom: 0;
   background: var(--bg); border-top-left-radius: 18px; border-top-right-radius: 18px;
   box-shadow: var(--shadow);
-  height: var(--sheet-collapsed-h);
+  height: var(--sheet-mini-h);
   transition: height .25s ease;
   z-index: 6;
-  padding: 0 14px calc(var(--safe-bottom) + 14px) 14px;
+  padding: 0 14px calc(var(--safe-bottom) + 6px) 14px;
   display: flex; flex-direction: column;
   touch-action: pan-y;
   max-width: var(--topbar-max);
@@ -181,6 +184,12 @@ body {
 }
 .sheet.expanded { height: var(--sheet-full-h); }
 .sheet.peek { height: var(--sheet-peek-h); }
+.sheet.mini { height: var(--sheet-mini-h); }
+.sheet.mini .sheet-list { display: none; }
+.sheet.mini .sheet-subtitle { display: none; }
+.sheet.collapsed { height: var(--sheet-collapsed-h); }
+.sheet.collapsed .sheet-list,
+.sheet.collapsed .sheet-subtitle { display: none; }
 .sheet-handle {
   width: 44px; height: 4px; background: var(--fg-2); opacity: .55;
   border-radius: 4px; margin: 8px auto 6px;
@@ -218,6 +227,31 @@ body {
 .sheet-list .name { font-weight: 700; color: var(--fg); }
 .sheet-list .meta { font-size: 12px; color: var(--fg-2); margin-top: 2px; }
 
+/* Dark-mode MapLibre basemap contrast overrides
+ * Google/Apple Maps dark uses:
+ *   water: dark blue/grey (#0d1b2a / #1a2a3a)
+ *   background: very dark grey (#1a1a1a)
+ *   roads: lighter than background so they stand out (#2d2d2d -> #3c4043)
+ *   labels: high contrast white with strong dark halo
+ * OpenFreeMap's dark_liberty has streets and labels both at low contrast
+ * which makes them merge; we boost road fill via paint and add a strong
+ * halo on labels.
+ */
+[data-theme='dark'] .maplibregl-canvas-container .maplibregl-canvas { filter: brightness(0.85) contrast(1.15); }
+
+/* POI popup directions button */
+.popup-actions {
+  display: flex; gap: 6px; margin-top: 8px;
+}
+.popup-actions a {
+  flex: 1; text-align: center;
+  padding: 6px 10px; border-radius: 8px;
+  background: var(--accent); color: #fff;
+  font-size: 12px; font-weight: 600;
+  text-decoration: none;
+}
+.popup-actions a.alt { background: var(--bg-3); color: var(--fg); }
+
 /* Skeleton loaders */
 .skeleton-row { display: flex; gap: 10px; padding: 10px 4px; }
 .skeleton {
@@ -230,8 +264,25 @@ body {
 @keyframes skel { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 
 /* MapLibre controls */
-.maplibregl-ctrl-top-right, .maplibregl-ctrl-top-left { display: none; }
+.maplibregl-ctrl-top-left { display: none; }
+.maplibregl-ctrl-top-right {
+  top: calc(var(--safe-top) + 64px);
+  right: 12px;
+}
 .maplibregl-ctrl-bottom-right { margin-bottom: calc(var(--sheet-collapsed-h) + var(--safe-bottom) + 8px); }
+.maplibregl-ctrl-group {
+  background: var(--bg) !important;
+  box-shadow: var(--shadow) !important;
+  border-radius: 12px !important;
+  overflow: hidden;
+}
+.maplibregl-ctrl-zoom-in, .maplibregl-ctrl-zoom-out {
+  background-color: var(--bg) !important;
+  color: var(--fg) !important;
+}
+.maplibregl-ctrl-zoom-in:hover, .maplibregl-ctrl-zoom-out:hover {
+  background-color: var(--bg-3) !important;
+}
 .maplibregl-ctrl-attrib { background: rgba(0,0,0,.55); color: #fff; }
 .maplibregl-ctrl-attrib a { color: #d2d8df; }
 

@@ -49,7 +49,7 @@ export class StateStore {
     if (s.level && !['city', 'county'].includes(s.level)) {
       errs.push(`unknown level ${s.level}`);
     }
-    if (s.sheet && !['collapsed', 'peek', 'expanded', 'hidden'].includes(s.sheet)) {
+    if (s.sheet && !['mini', 'collapsed', 'peek', 'expanded', 'hidden'].includes(s.sheet)) {
       errs.push(`unknown sheet state ${s.sheet}`);
     }
     return errs;

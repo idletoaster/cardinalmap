@@ -17,7 +17,7 @@ import { name as dbgN, version as dbgV } from '../modules/debug-hud/index.js';
 import { name as backN, version as backV } from '../modules/back-to-city/index.js';
 
 export const CORE_VERSION = '1.0.0';
-export const APP_VERSION = '2.1.1';
+export const APP_VERSION = '2.2.0';
 export const MODULES = {
   [apiN]: apiV,
   [themeN]: themeV,

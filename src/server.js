@@ -15,11 +15,11 @@ const directionRoutes = require('./routes/direction');
 const poiRoutes       = require('./routes/poi');
 const adminRoutes     = require('./routes/admin');
 
-const APP_VERSION  = '2.1.1';
+const APP_VERSION  = '2.2.0';
 const CORE_VERSION = '1.0.0';
 const MODULES = {
-  api: '1.1.0', theme: '1.0.0', map: '1.1.0', wedge: '1.0.0', city: '1.0.0',
-  direction: '1.1.0', poi: '1.1.0', search: '1.1.0', geolocate: '1.0.0',
+  api: '1.1.0', theme: '1.0.0', map: '1.3.0', wedge: '1.0.0', city: '1.0.0',
+  direction: '1.1.0', poi: '1.3.0', search: '1.1.0', geolocate: '1.0.0',
   sheet: '1.1.0', compass: '1.0.0', level: '1.1.0', 'style-toggle': '1.0.0',
   toast: '1.0.0', 'debug-hud': '1.0.0', 'back-to-city': '1.2.0',
 };
@@ -87,11 +87,13 @@ function moduleMtime(absRel) {
 }
 
 // Cache-bust /js/app.js AND rewrite all relative `./...` imports (incl. core/, modules/).
-app.get(/^\/js\/app\.js(?:\?.*)?$/, (req, res, next) => {
-  const filePath = path.join(PUBLIC_DIR, 'js', 'app.js');
+app.get(/^\/js\/.*\.js(?:\?.*)?$/, (req, res, next) => {
+  // request URL may include ?v=<mtime>; strip it before reading the file
+  const urlPath = req.path;  // already has leading '/'
+  const filePath = path.join(PUBLIC_DIR, urlPath);
   fs.readFile(filePath, 'utf8', (err, code) => {
     if (err) return next(err);
-    const v = moduleMtime('js/app.js');
+    const v = moduleMtime(urlPath.slice(1));
     const busted = code.replace(
       /(from\s+['"])(\.{1,2}\/[^"']+)(['"])/g,
       (_m, head, spec, tail) => {

@@ -1,12 +1,15 @@
-// sheet module - state machine + title/subtitle/count/list rendering. v1.1.0
+// sheet module - state machine + title/subtitle/count/list rendering. v1.2.0
 export const name = 'sheet';
-export const version = '1.1.0';
+export const version = '1.2.0';
 export const deps = ['state', 'events', 'poi'];
 
-const ORDER = ['collapsed', 'peek', 'expanded', 'hidden'];
+// Order matters: cycle() rotates through these. 'mini' is the new minimize
+// state (~56px) — only the handle + title bar visible, no POI list, no
+// subtitle. Cycle: mini -> peek -> expanded -> hidden -> mini.
+const ORDER = ['mini', 'peek', 'expanded', 'hidden'];
 
 export function init({ app, state, events, log }) {
-  state.set({ sheet: 'peek' });
+  state.set({ sheet: 'mini' });
 
   function set(mode) {
     if (!ORDER.includes(mode)) return;
@@ -15,7 +18,7 @@ export function init({ app, state, events, log }) {
     const el = document.querySelector('#sheet') || document.querySelector('#bottom-sheet');
     if (el) {
       el.dataset.state = mode;
-      el.classList.remove('collapsed', 'peek', 'expanded', 'hidden');
+      el.classList.remove('mini', 'collapsed', 'peek', 'expanded', 'hidden');
       el.classList.add(mode);
     }
     events.emit('ui:sheet:set', { state: mode });
@@ -30,10 +33,9 @@ export function init({ app, state, events, log }) {
 
   document.querySelector('#sheet-handle')?.addEventListener('click', () => {
     const cur = state.get('sheet');
-    if (cur === 'collapsed') set('peek');
+    if (cur === 'mini' || cur === 'hidden' || cur === 'collapsed') set('peek');
     else if (cur === 'peek') set('expanded');
-    else if (cur === 'expanded') set('peek');
-    else if (cur === 'hidden') set('peek');
+    else if (cur === 'expanded') set('mini');
   });
 
   document.querySelector('#expand-sheet')?.addEventListener('click', () => {
@@ -44,8 +46,9 @@ export function init({ app, state, events, log }) {
   // existing legacy button id from prior UI
   document.querySelector('#sheet-toggle-btn')?.addEventListener('click', () => {
     const cur = state.get('sheet');
-    if (cur === 'peek') set('expanded');
-    else set('peek');
+    if (cur === 'mini' || cur === 'collapsed' || cur === 'hidden') set('peek');
+    else if (cur === 'peek') set('expanded');
+    else if (cur === 'expanded') set('mini');
   });
 
   // ---- title / subtitle / count / list ----

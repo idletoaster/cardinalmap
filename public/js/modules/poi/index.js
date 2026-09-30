@@ -1,8 +1,9 @@
 // poi module - POI layers, popups, click handler, POI-zoom view-mode.
 // Loads POIs for the active direction wedge from /api/direction, dedupes
-// defensively on the client, and renders them on the map. v1.1.0
+// defensively on the client, and renders them on the map. v1.2.0 adds a
+// popup with a Directions button (deep-links to Google Maps / Apple Maps).
 export const name = 'poi';
-export const version = '1.1.0';
+export const version = '1.3.0';
 export const deps = ['map', 'state', 'events', 'api'];
 
 function dedupByOsmId(features) {
@@ -55,17 +56,67 @@ export function init({ app, events, state, log }) {
 
   function clear() { return setPois(emptyFC()); }
 
+  let activePopup = null;
+
+  function escapeHtml(s) {
+    return String(s ?? '').replace(/[&<>"']/g, (c) => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    })[c]);
+  }
+
+  function directionsLinks(feature) {
+    const c = feature.geometry?.coordinates;
+    if (!c) return { google: '#', apple: '#' };
+    const [lon, lat] = c;
+    const name = encodeURIComponent(feature.properties?.name || 'POI');
+    // Google Maps universal directions URL
+    const google = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}&travelmode=driving&destination_place_id=${name}`;
+    // Apple Maps directions URL (macOS / iOS)
+    const apple  = `https://maps.apple.com/?daddr=${lat},${lon}&dirflg=d`;
+    return { google, apple };
+  }
+
+  function popupHtml(feature) {
+    const p = feature.properties || {};
+    const name = escapeHtml(p.name || 'Unnamed');
+    const meta = [p.category_id, p.address].filter(Boolean).map(escapeHtml).join(' · ');
+    const { google, apple } = directionsLinks(feature);
+    const isApple = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent || '');
+    return `
+      <div class="poi-popup">
+        <div class="poi-popup-name">${name}</div>
+        ${meta ? `<div class="poi-popup-meta">${meta}</div>` : ''}
+        <div class="popup-actions">
+          <a href="${google}" target="_blank" rel="noopener">Directions</a>
+          ${isApple ? `<a class="alt" href="${apple}" target="_blank" rel="noopener">Apple Maps</a>` : ''}
+        </div>
+      </div>
+    `;
+  }
+
   function select(feature) {
     if (!feature) return;
     state.set({ selectedPOI: feature, viewMode: 'poi-zoom' });
     const mapApi = app.get('map');
     if (mapApi && feature.geometry?.coordinates) {
       mapApi.fitTo({ type: 'Feature', geometry: { type: 'Point', coordinates: feature.geometry.coordinates }, properties: {} }, { padding: 120, duration: 600 });
+      // Show a popup with name + Directions buttons
+      const map = mapApi.getMap?.();
+      if (map && window.maplibregl) {
+        if (activePopup) { activePopup.remove(); activePopup = null; }
+        activePopup = new window.maplibregl.Popup({ closeButton: true, offset: 14, maxWidth: '280px' })
+          .setLngLat(feature.geometry.coordinates)
+          .setHTML(popupHtml(feature))
+          .addTo(map);
+        activePopup.on('close', () => { activePopup = null; });
+      }
     }
     events.emit('poi:selected', { feature });
     events.emit('view:change', { mode: 'poi-zoom' });
     log?.(`poi selected ${feature.properties?.name}`);
   }
+
+  function clearPopup() { if (activePopup) { activePopup.remove(); activePopup = null; } }
 
   setTimeout(() => {
     const mapApi = app.get('map');
@@ -87,10 +138,11 @@ export function init({ app, events, state, log }) {
     if (center) loadFor(center[1], center[0], dir);
   });
 
-  // Reset POIs when the user navigates back to the full city view.
+  // Reset POIs (and any open popup) when the user navigates back to the full city view.
   events.on('view:change', ({ mode }) => {
-    if (mode === 'city') clear();
+    if (mode === 'city') { clearPopup(); clear(); }
   });
+  events.on('back:city', () => { clearPopup(); });
 
   return { setPois, loadFor, clear, select };
 }
