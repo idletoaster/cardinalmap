@@ -1,4 +1,10 @@
-// map module - MapLibre instance, registry, ensureLayers guarded on style. v1.6.0
+// map module - MapLibre instance, registry, ensureLayers guarded on style. v1.7.0
+// v1.7.0: Google Maps dark palette — split road override into separate
+//          casing / inner / minor loops so highway rendering keeps its
+//          "outer ring + dark fill" look. Casing now uses a bright
+//          rgba(124,124,128,.95) so motorways/highways visibly pop against
+//          the dark background; inner stays near-black like GMaps. Added a
+//          subtle green tint to parks/wood and a deeper blue to water.
 // v1.6.0: POI pins recolored by category (fuel=orange, convenience=blue,
 //          lottery=purple) — modern map style instead of the previous opaque
 //          black/near-white dots. Stroke narrowed to 2px and opacity softened
@@ -21,7 +27,7 @@
 //          are scoped to basemap layers only — REGISTRY layers (boundary/wedge/pois)
 //          keep their own theme-driven colors via paintsForTheme().
 export const name = 'map';
-export const version = '1.6.0';
+export const version = '1.7.0';
 export const deps = [];
 
 const STYLE_URLS = {
@@ -163,45 +169,87 @@ function applyBasemapOverrides(map, theme) {
   }
 
   // ---------- DARK MODE OVERRIDES ----------
-  // Google Maps / Apple Maps dark palette — picked so streets visibly differ
-  // from the background and labels read crisp with a dark halo.
+  // Google Maps dark palette. Three independent road passes so casing/inner
+  // stay distinct (GMaps uses a bright outer ring + near-black road surface):
+  //   1) casing    -> bright visible outer ring
+  //   2) inner     -> dark road surface
+  //   3) minor     -> single-line roads that have no casing split
+  // Water gets a deeper blue; parks/wood get a subtle green tint so they
+  // visually distinguish from generic landuse; labels get a dark halo.
   safeSetPaint(map, 'background', 'background-color', '#1a1a1a');
 
+  // Water — deeper, more saturated blue than the basemap's near-black.
   for (const layer of layers) {
     const id = layer.id;
     if (layer.type === 'fill' && (id === 'water' || id.startsWith('water_') || id.startsWith('ocean') || id === 'landuse_water')) {
-      safeSetPaint(map, id, 'fill-color', '#1c2e3f');
+      safeSetPaint(map, id, 'fill-color', '#0f1c2b');
     }
     if (layer.type === 'line' && (id.startsWith('waterway') || id.includes('water'))) {
-      safeSetPaint(map, id, 'line-color', '#2c4763');
+      safeSetPaint(map, id, 'line-color', '#234159');
     }
   }
 
+  // Road casings — bright outer ring so highways stand out.
+  for (const layer of layers) {
+    const id = layer.id;
+    if (layer.type !== 'line' || !id.includes('_casing')) continue;
+    if (id.includes('motorway') || id.includes('trunk')) {
+      safeSetPaint(map, id, 'line-color', 'rgba(124,124,128,0.95)');
+    } else if (id.includes('primary') || id.includes('secondary')) {
+      safeSetPaint(map, id, 'line-color', 'rgba(96,96,100,0.9)');
+    } else if (id.includes('major') || id.includes('tertiary') || id.includes('minor') || id.includes('residential')) {
+      safeSetPaint(map, id, 'line-color', 'rgba(72,72,76,0.85)');
+    } else {
+      safeSetPaint(map, id, 'line-color', 'rgba(60,60,64,0.8)');
+    }
+  }
+
+  // Road inners — near-black surface, slightly lighter than background so
+  // they read as "road" rather than a hole in the map.
+  for (const layer of layers) {
+    const id = layer.id;
+    if (layer.type !== 'line' || !id.includes('_inner')) continue;
+    if (id.includes('motorway') || id.includes('trunk') || id.includes('primary')) {
+      safeSetPaint(map, id, 'line-color', '#26262a');
+    } else if (id.includes('secondary') || id.includes('major')) {
+      safeSetPaint(map, id, 'line-color', '#1f1f22');
+    } else {
+      safeSetPaint(map, id, 'line-color', '#1a1a1c');
+    }
+  }
+
+  // Single-line roads (no casing split): minor roads, paths, piers.
   for (const layer of layers) {
     const id = layer.id;
     if (layer.type !== 'line') continue;
-    const isRoad = id.startsWith('transportation') || id.startsWith('highway') ||
+    if (id.includes('_casing') || id.includes('_inner') || id.includes('_subtle')) continue;
+    const isRoad = id.startsWith('highway') || id.startsWith('transportation') ||
                    id.startsWith('road') || id === 'street';
     if (!isRoad) continue;
-
-    if (id.includes('motorway') || id.includes('trunk') || id.includes('primary')) {
-      safeSetPaint(map, id, 'line-color', '#545458');
-    } else if (id.includes('secondary')) {
+    if (id.includes('minor') || id.includes('residential') || id.includes('tertiary') || id.includes('service')) {
       safeSetPaint(map, id, 'line-color', '#3a3a3c');
-    } else if (id.includes('tertiary') || id.includes('minor') || id.includes('residential') || id.includes('service')) {
-      safeSetPaint(map, id, 'line-color', '#2c2c2e');
+    } else if (id.includes('path') || id.includes('track')) {
+      safeSetPaint(map, id, 'line-color', '#545458');
+    } else if (id.includes('pier')) {
+      safeSetPaint(map, id, 'line-color', '#3a3a3c');
     } else {
-      safeSetPaint(map, id, 'line-color', '#383838');
+      safeSetPaint(map, id, 'line-color', '#3a3a3c');
     }
   }
 
+  // Buildings + landuse — subtle green tint for parks/wood so they
+  // distinguish from generic residential gray.
   for (const layer of layers) {
     const id = layer.id;
     if (id.startsWith('building') && layer.type === 'fill') {
-      safeSetPaint(map, id, 'fill-color', '#262626');
-      safeSetPaint(map, id, 'fill-outline-color', '#3a3a3a');
+      safeSetPaint(map, id, 'fill-color', '#1f1f22');
+      safeSetPaint(map, id, 'fill-outline-color', '#3a3a3e');
     }
-    if ((id === 'landcover' || id.startsWith('landuse') || id.startsWith('landcover')) && layer.type === 'fill') {
+    if (id.startsWith('landuse_park') || id.startsWith('landcover_wood') || id.startsWith('park')) {
+      if (layer.type === 'fill') {
+        safeSetPaint(map, id, 'fill-color', '#1c2820');
+      }
+    } else if ((id === 'landcover' || id.startsWith('landuse') || id.startsWith('landcover')) && layer.type === 'fill') {
       safeSetPaint(map, id, 'fill-color', '#1f1f1f');
     }
   }
@@ -216,7 +264,7 @@ function applyBasemapOverrides(map, theme) {
                     id.startsWith('housenum');
     if (!isLabel) continue;
     safeSetPaint(map, id, 'text-color', '#e8eaed');
-    safeSetPaint(map, id, 'text-halo-color', 'rgba(0,0,0,1)');
+    safeSetPaint(map, id, 'text-halo-color', 'rgba(26,26,26,1)');
     safeSetPaint(map, id, 'text-halo-width', 1.6);
     safeSetPaint(map, id, 'text-halo-blur', 0.4);
   }
