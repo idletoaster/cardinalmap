@@ -176,7 +176,13 @@ async function lookupByOsm({ osmType, osmId }) {
  * matches an admin_level 4 (county) or 6 (city) polygon.
  *
  * @param {object}  p            { lat, lon }
- * @param {number}  zoom         Nominatim zoom: 3=country, 5=state, 8=county, 10=city, 14=suburb
+ * @param {number}  zoom         Nominatim zoom (current mapping): 3=country,
+ *                               5=state, 9=county, 10=city, 14=suburb. (The
+ *                               Nominatim zoom→admin_level mapping has shifted
+ *                               over the years: older docs say zoom=8=county,
+ *                               but the public endpoint now returns neighbourhood
+ *                               polygons at zoom=8. Always use zoom=9 for county
+ *                               in the US to land on admin_level=6.)
  * @param {number}  [adminLevel] Optional admin_level filter (server-side, via /search)
  */
 async function reverse({ lat, lon, zoom = 8 }) {

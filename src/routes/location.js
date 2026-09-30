@@ -1,4 +1,12 @@
 'use strict';
+// location routes — /api/locate and /api/region/:id/status.
+// v1.1.1: county-mode Nominatim zoom fixed (8 → 9). The Nominatim public
+//          endpoint's zoom→admin_level mapping has shifted: zoom=8 now
+//          returns a neighbourhood polygon (~57 coords around Downtown San
+//          Diego) instead of the county polygon. Using zoom=9 reliably
+//          lands on admin_level=6 (US county) and returns the full county
+//          polygon (~400–600 coords). Verified against San Diego, Orange,
+//          and Los Angeles counties.
 
 const express = require('express');
 const cfg = require('../../config');
@@ -51,7 +59,12 @@ router.get('/locate', async (req, res, next) => {
           const placeLevel = place.level || 'city';
           if (mode === 'county' && placeLevel !== 'county') {
             // Hit is a city but user wants county → reverse for containing county.
-            const county = await reverse({ lat, lon, zoom: 8 });
+            // Nominatim zoom=8 maps to neighbourhood (admin_level=10), not county.
+            // Use zoom=9 to land on admin_level=6 (the US county level). Tested
+            // with San Diego, Orange County, LA County — zoom=9 reliably returns
+            // the full county polygon (~400–600 coords). zoom=8 silently returned
+            // "Downtown San Diego" (57 coords) on the same coordinates.
+            const county = await reverse({ lat, lon, zoom: 9 });
             if (county && county.geojson) {
               geojson = county.geojson;
               centroid = centroidOfGeoJSON(geojson);
