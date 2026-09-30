@@ -1,6 +1,6 @@
-// search module - debounced /api/search, emits search:picked. v1.0.0
+// search module - debounced /api/search, emits search:picked. v1.1.0
 export const name = 'search';
-export const version = '1.0.0';
+export const version = '1.1.0';
 export const deps = ['api', 'events'];
 
 export function init({ app, events, log }) {
@@ -17,6 +17,7 @@ export function init({ app, events, log }) {
     if (my !== token) return;
     if (!list) return;
     list.innerHTML = '';
+    list.hidden = results.length === 0;
     for (const r of results) {
       const li = document.createElement('li');
       li.className = 'search-result';
@@ -31,6 +32,7 @@ export function init({ app, events, log }) {
       li.addEventListener('click', () => {
         events.emit('search:picked', { ...r, id: r.osm_id || r.id, name: displayName, kind: li.dataset.kind });
         list.innerHTML = '';
+        list.hidden = true;
       });
       list.appendChild(li);
     }

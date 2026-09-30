@@ -21,7 +21,7 @@ const MODULES = {
   api: '1.1.0', theme: '1.0.0', map: '1.1.0', wedge: '1.0.0', city: '1.0.0',
   direction: '1.1.0', poi: '1.1.0', search: '1.0.0', geolocate: '1.0.0',
   sheet: '1.0.0', compass: '1.0.0', level: '1.0.0', 'style-toggle': '1.0.0',
-  toast: '1.0.0', 'debug-hud': '1.0.0', 'back-to-city': '1.1.0',
+  toast: '1.0.0', 'debug-hud': '1.0.0', 'back-to-city': '1.2.0',
 };
 
 const app = express();
