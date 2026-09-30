@@ -1,4 +1,9 @@
-// city module - selectCity / selectCounty, boundary persistence. v1.2.0
+// city module - selectCity / selectCounty, boundary persistence. v1.3.0
+// v1.3.0: round-trip on level toggle — when level flips back to 'city',
+//          restore the city the user originally picked (stored in
+//          `rememberedCity` by selectCity). City→county→city now goes back
+//          to the original city without a re-search. If no city is in
+//          memory, the toggle is a no-op and a toast hints at the cause.
 // v1.2.0: smart-county on level toggle — remove dead state guard that was
 //          blocking the user-driven toggle (level:change fires AFTER state
 //          is already set, so state.get('level') === 'county' was always true
@@ -8,7 +13,7 @@
 //          is currently selected, automatically reverse-geocode the city center
 //          (via api.reverseToCounty) and select the containing county.
 export const name = 'city';
-export const version = '1.2.0';
+export const version = '1.3.0';
 export const deps = ['map', 'state', 'events', 'api', 'toast'];
 
 function centroidOf(fc) {
@@ -38,6 +43,13 @@ function centroidOf(fc) {
   return [sx / bestRing.length, sy / bestRing.length];
 }
 
+// Holds the last user-selected city feature so we can restore it when
+// they toggle level back from county -> city. Populated by selectCity();
+// NOT cleared by selectCounty() so the round-trip City→County→City works
+// even after manual county picks. Module-scope (not init-scope) so it
+// survives across the level round-trip and reloads.
+let rememberedCity = null;
+
 export function init({ app, events, state, log }) {
   const api = app.get('api');
   const toast = app.get('toast');
@@ -66,18 +78,49 @@ export function init({ app, events, state, log }) {
     }
   }
 
+  // Restore the city the user originally picked. Populated by selectCity();
+  // persisted across selectCounty() calls so a manual county pick doesn't
+  // erase the original city (the whole point of the round-trip).
+  async function restoreCityFromMemory() {
+    if (!rememberedCity) {
+      // User toggled City without ever picking one (e.g., went straight to
+      // County from search). Level module already flipped state.level to
+      // 'city'; clear stale county data so the map + sheet don't lie.
+      toast?.toast?.('No city to restore — search for one first', 'info');
+      state.set({ city: null, boundary: null });
+      const mapApi = app.get('map');
+      if (mapApi?.setSource) {
+        try { mapApi.setSource('boundary', { type: 'FeatureCollection', features: [] }); }
+        catch (e) { log?.(`clear-boundary failed: ${e?.message || e}`); }
+      }
+      return;
+    }
+    try {
+      await selectCity(rememberedCity.feature, rememberedCity.boundary);
+      log?.(`restored city ${rememberedCity.feature.properties?.name}`);
+    } catch (e) {
+      log?.(`restore-city failed: ${e?.message || e}`);
+      toast?.toast?.('Could not restore previous city', 'error');
+    }
+  }
+
   // When the user toggles level to county, auto-resolve from the current city.
-  // The level module emits 'level:change' AFTER state.level has already been
-  // set, so we key off `source` instead of checking state.level. selectCounty
-  // does NOT emit 'level:change', so this handler only fires on user clicks.
+  // When they toggle back to city, restore the city they originally picked
+  // (held in module-scope `rememberedCity`). The level module emits
+  // 'level:change' AFTER state.level has already been set, so we key off
+  // `source` instead of checking state.level. selectCity/selectCounty do NOT
+  // emit 'level:change', so this handler only fires on user clicks.
   events.on('level:change', ({ level, source }) => {
-    if (level !== 'county') return;
     if (source && source !== 'user') return;
-    autoCountyFromCity();
+    if (level === 'county')      autoCountyFromCity();
+    else if (level === 'city')   restoreCityFromMemory();
   });
   async function selectCity(feature, boundary) {
     if (!feature || !boundary) return;
     boundary._center = centroidOf(boundary);
+    // Remember the city the user actually picked so we can restore it
+    // when they toggle from county back to city.
+    rememberedCity = { feature, boundary };
     state.set({
       level: 'city',
       city: { id: feature.id, name: feature.properties?.name, feature, boundary },
