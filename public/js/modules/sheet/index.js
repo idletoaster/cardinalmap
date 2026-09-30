@@ -1,15 +1,24 @@
-// sheet module - state machine + title/subtitle/count/list rendering. v1.2.0
+// sheet module - state machine + title/subtitle/count/list rendering. v1.3.0
+// v1.3.0: stay at 'mini' on city:selected instead of auto-expanding to
+//          'peek' (user feedback: POI sheet was overlapping the map).
+//          Toggle button is now bidirectional (up=expand, down=minimize)
+//          and updates its arrow glyph to match the current state.
 export const name = 'sheet';
-export const version = '1.2.0';
+export const version = '1.3.0';
 export const deps = ['state', 'events', 'poi'];
 
-// Order matters: cycle() rotates through these. 'mini' is the new minimize
-// state (~56px) — only the handle + title bar visible, no POI list, no
+// Order matters: cycle() rotates through these. 'mini' is the minimize
+// state (~56px) - only the handle + title bar visible, no POI list, no
 // subtitle. Cycle: mini -> peek -> expanded -> hidden -> mini.
 const ORDER = ['mini', 'peek', 'expanded', 'hidden'];
 
 export function init({ app, state, events, log }) {
+  // Apply initial sheet state. The hardcoded `state.set` patch doesn't run
+  // our local `set()` function. setTimeout schedules the DOM sync after the
+  // current task, so #sheet is in the DOM and any module that touches the
+  // sheet (style-toggle, etc.) has completed its synchronous init.
   state.set({ sheet: 'mini' });
+  setTimeout(() => set('mini'), 0);
 
   function set(mode) {
     if (!ORDER.includes(mode)) return;
@@ -31,6 +40,7 @@ export function init({ app, state, events, log }) {
     set(ORDER[(idx + 1) % ORDER.length]);
   }
 
+  // Drag handle cycles: mini/hidden/collapsed -> peek -> expanded -> mini
   document.querySelector('#sheet-handle')?.addEventListener('click', () => {
     const cur = state.get('sheet');
     if (cur === 'mini' || cur === 'hidden' || cur === 'collapsed') set('peek');
@@ -38,20 +48,33 @@ export function init({ app, state, events, log }) {
     else if (cur === 'expanded') set('mini');
   });
 
+  // Topbar expand button: cycle from hidden, otherwise cycle.
   document.querySelector('#expand-sheet')?.addEventListener('click', () => {
     const cur = state.get('sheet');
     if (cur === 'hidden') set('peek');
     else cycle();
   });
-  // existing legacy button id from prior UI
+
+  // v1.3.0: bidirectional toggle button in sheet header.
+  //  - sheet at mini/collapsed/hidden -> click goes to peek (expand)
+  //  - sheet at peek/expanded -> click goes to mini (minimize)
+  // Arrow glyph also flips: up-arrow when minimized, down-arrow when expanded.
+  function syncToggleArrow() {
+    const btn = document.querySelector('#sheet-toggle-btn');
+    if (!btn) return;
+    const cur = state.get('sheet');
+    const isExpanded = cur === 'peek' || cur === 'expanded';
+    btn.textContent = isExpanded ? '\u2193' : '\u2191';
+    btn.setAttribute('aria-label', isExpanded ? 'Minimize list' : 'Expand list');
+    btn.title = isExpanded ? 'Minimize list' : 'Expand list';
+  }
+  state.subscribe((patch) => { if (patch && 'sheet' in patch) syncToggleArrow(); });
   document.querySelector('#sheet-toggle-btn')?.addEventListener('click', () => {
     const cur = state.get('sheet');
-    if (cur === 'mini' || cur === 'collapsed' || cur === 'hidden') set('peek');
-    else if (cur === 'peek') set('expanded');
-    else if (cur === 'expanded') set('mini');
+    if (cur === 'peek' || cur === 'expanded') set('mini');
+    else set('peek');
   });
-
-  // ---- title / subtitle / count / list ----
+  syncToggleArrow();// ---- title / subtitle / count / list ----
   const titleEl    = () => document.querySelector('#sheet-title');
   const subtitleEl = () => document.querySelector('#sheet-subtitle');
   const countEl    = () => document.querySelector('#sheet-count');
@@ -130,8 +153,10 @@ export function init({ app, state, events, log }) {
   // Initial empty state on boot
   renderEmptyState();
 
-  // Re-render whenever any of the relevant state slices change.
-  events.on('city:selected', () => { renderPois(); set('peek'); });
+  // v1.3.0: do NOT auto-expand on city selection - sheet stays at current
+  // state so the user can see the map. They expand manually via the
+  // up-arrow button in the sheet header.
+  events.on('city:selected', () => { renderPois(); /* stay at current sheet */ });
   events.on('direction:change', () => renderPois());
   events.on('view:change', () => renderPois());
 

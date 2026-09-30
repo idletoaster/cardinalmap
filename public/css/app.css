@@ -172,6 +172,7 @@ body {
   margin: 0 auto;
   color: var(--fg);
 }
+.sheet.mini     { height: var(--sheet-mini-h, 56px); padding-bottom: 0; }
 .sheet.expanded { height: var(--sheet-full-h); }
 .sheet.peek { height: var(--sheet-peek-h); }
 .sheet-handle {
