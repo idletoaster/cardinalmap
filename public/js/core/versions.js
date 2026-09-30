@@ -1,4 +1,15 @@
 // versions.js - aggregated module versions. v1.0.0
+// v1.1.0: APP_VERSION bumped to 2.5.8 — vibrant hue-distinct dark-mode label
+//          palette. map 1.8.4 gives each label class its own hue so labels
+//          pop as a separate visual layer from the grey road casings:
+//          city→#ffffff, town→#ffe066 (warm yellow), suburb→#7fdbff (sky
+//          blue), major highway→#ffd166 (amber), minor highway→#c0aaff
+//          (lavender), water→#5ac8fa (vivid blue), transit→#ff9ec7 (pink),
+//          housenum→#b8b8c8. Halo widened to 2.0/0.8 for stronger
+//          separation against the dark basemap. v1.0.9's all-grey palette
+//          (whites + light greys + light blues) blended into the road
+//          casings rgba(124,124,128,.95) / rgba(96,96,100,.9) and labels
+//          didn't read as a distinct layer.
 // v1.0.9: APP_VERSION bumped to 2.5.7 — attribution COMPLETELY minimized.
 //          map 1.8.3: collapseAttribution() now runs on every map event
 //          (load/styledata/idle/sourcedata/popupopen/popupclose) AND a
@@ -60,7 +71,7 @@ import { name as dbgN, version as dbgV } from '../modules/debug-hud/index.js';
 import { name as backN, version as backV } from '../modules/back-to-city/index.js';
 
 export const CORE_VERSION = '1.0.0';
-export const APP_VERSION = '2.5.7';
+export const APP_VERSION = '2.5.8';
 export const MODULES = {
   [apiN]: apiV,
   [themeN]: themeV,

@@ -1,4 +1,14 @@
-// map module - MapLibre instance, registry, ensureLayers guarded on style. v1.8.3
+// map module - MapLibre instance, registry, ensureLayers guarded on style. v1.8.4
+// v1.8.4: Vibrant hue-distinct dark-mode label palette. Previous palette was
+//          all shades of grey/white (#ffffff, #f0f2f5, #d0d4dc, #c0c7d2,
+//          #b8d4ff, #e2e6ec, #a8afb8) which blurred into the bright grey
+//          road casings (rgba(124,124,128,.95) motorway, rgba(96,96,100,.9)
+//          primary) — labels and streets shared the same hue family, so
+//          labels didn't pop as a separate visual layer. New palette gives
+//          each label class its own hue: city→white, town→warm yellow,
+//          suburb→sky blue, major highway→amber, minor highway→lavender,
+//          water→vivid blue, transit→pink, housenum→cool grey. Halo bumped
+//          to width 2.0 / blur 0.8 for stronger separation.
 // v1.8.3: Attribution is now COMPLETELY minimized. Previous once-flag
 //          collapseAttribution() ran on first render only; MapLibre's
 //          compact AttributionControl then re-applied `open=""` +
@@ -44,7 +54,7 @@
 //          are scoped to basemap layers only — REGISTRY layers (boundary/wedge/pois)
 //          keep their own theme-driven colors via paintsForTheme().
 export const name = 'map';
-export const version = '1.8.3';
+export const version = '1.8.4';
 export const deps = [];
 
 const STYLE_URLS = {
@@ -290,35 +300,54 @@ function applyBasemapOverrides(map, theme) {
                     id.startsWith('transit_') || id.startsWith('housenum') ||
                     id.includes('_name');
     if (!isLabel) continue;
+    // v1.8.4 — Vibrant, hue-distinct dark-mode palette. Previously every
+    // label was a shade of grey/white (#ffffff, #f0f2f5, #d0d4dc, #c0c7d2,
+    // #b8d4ff, #e2e6ec, #a8afb8) which all read as "near-white" against the
+    // dark basemap and, worse, blurred into the bright grey road casings
+    // (rgba(124,124,128,.95) motorway casing, rgba(96,96,100,.9) primary).
+    // The hierarchy was correct but the colour palette was not — labels
+    // and road casings shared the same hue family, so labels didn't pop
+    // as a separate visual layer.
+    //
+    // New palette uses a different HUE per label class so labels read as
+    // their own layer distinct from the grey road network:
+    //   • place city/state/country → pure white (#ffffff)  — top tier
+    //   • place town               → warm yellow (#ffe066) — vibrant
+    //   • place suburb/village/etc → sky blue (#7fdbff)    — distinct
+    //   • highway_name major       → warm amber (#ffd166)  — pops vs grey road
+    //   • highway_name minor       → lavender (#c0aaff)    — distinct hue
+    //   • water / waterway names   → vivid blue (#5ac8fa)  — water-themed
+    //   • transit labels           → pink (#ff9ec7)        — distinct accent
+    //   • housenum                 → cool grey (#b8b8c8)   — neutral
     let color;
     if (id.startsWith('place_')) {
       if (id.includes('city') || id.includes('state') || id.includes('country')) {
         color = '#ffffff';
       } else if (id.includes('town')) {
-        color = '#ffffff';
+        color = '#ffe066';
       } else {
         // suburb, village, neighbourhood, hamlet, quarter, locality, other
-        color = '#d0d4dc';
+        color = '#7fdbff';
       }
     } else if (id.startsWith('highway_name')) {
       if (id.includes('minor') || id.includes('service') || id.includes('path') || id.includes('track')) {
-        color = '#c0c7d2';
+        color = '#c0aaff';
       } else {
-        color = '#f0f2f5';
+        color = '#ffd166';
       }
     } else if (id.startsWith('water_') || id.startsWith('waterway_')) {
-      color = '#b8d4ff';
+      color = '#5ac8fa';
     } else if (id.startsWith('transit_')) {
-      color = '#e2e6ec';
+      color = '#ff9ec7';
     } else if (id.startsWith('housenum')) {
-      color = '#a8afb8';
+      color = '#b8b8c8';
     } else {
-      color = '#f0f2f5';
+      color = '#ffd166';
     }
     safeSetPaint(map, id, 'text-color', color);
-    safeSetPaint(map, id, 'text-halo-color', 'rgba(0,0,0,0.95)');
-    safeSetPaint(map, id, 'text-halo-width', 1.8);
-    safeSetPaint(map, id, 'text-halo-blur', 0.6);
+    safeSetPaint(map, id, 'text-halo-color', 'rgba(0,0,0,1)');
+    safeSetPaint(map, id, 'text-halo-width', 2.0);
+    safeSetPaint(map, id, 'text-halo-blur', 0.8);
   }
 }
 
