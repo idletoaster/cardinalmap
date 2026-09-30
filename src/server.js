@@ -15,7 +15,7 @@ const directionRoutes = require('./routes/direction');
 const poiRoutes       = require('./routes/poi');
 const adminRoutes     = require('./routes/admin');
 
-const APP_VERSION  = '2.5.10';
+const APP_VERSION  = '2.5.11';
 const CORE_VERSION = '1.0.2';
 const MODULES = {
   api: '1.2.0', theme: '1.0.1', map: '1.8.5', wedge: '1.2.0', city: '1.3.0',

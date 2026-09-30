@@ -11,7 +11,7 @@ router.get('/search', async (req, res, next) => {
   try {
     const q = String(req.query.q || '').trim();
     if (q.length < 2) return res.json({ results: [] });
-    const results = await search(q, { countryCodes: cfg.app.countryCode, limit: 8 });
+    const results = await search(q, { countryCodes: cfg.app.countryCode, limit: 25 });
     res.json({ results });
   } catch (e) { next(e); }
 });

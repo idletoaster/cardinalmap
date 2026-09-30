@@ -110,10 +110,21 @@ router.get('/locate', async (req, res, next) => {
       centroid,
     });
 
+    // Filter by the resolved osm_id when we resolved a specific city/county.
+    // Without this, the query picks whichever row the planner returns first,
+    // which is wrong when the 10-mile radius crosses multiple admin boundaries
+    // (San Diego sits near the junction of San Diego, Orange, Riverside, and
+    // Imperial counties, all four end up in admin_boundaries for the same
+    // region_id, and Array.find returns an arbitrary one).
+    const ctxParams = [out.region_id];
+    let ctxWhere = `region_id = $1 AND level IN ('city','county') AND name IS NOT NULL`;
+    if (resolvedOsmId && resolvedOsmType) {
+      ctxParams.push(resolvedOsmId, resolvedOsmType);
+      ctxWhere += ` AND osm_id = $${ctxParams.length - 1} AND osm_type = $${ctxParams.length}`;
+    }
     const { rows: ctxRows } = await pool.query(
-      `SELECT DISTINCT level, name FROM admin_boundaries
-       WHERE region_id = $1 AND level IN ('city','county') AND name IS NOT NULL`,
-      [out.region_id]
+      `SELECT DISTINCT level, name FROM admin_boundaries WHERE ${ctxWhere}`,
+      ctxParams
     );
 
     const city   = ctxRows.find((r) => r.level === 'city')?.name   || label;
