@@ -1,4 +1,9 @@
-// map module - MapLibre instance, registry, ensureLayers guarded on style. v1.4.0
+// map module - MapLibre instance, registry, ensureLayers guarded on style. v1.5.0
+// v1.5.0: AttributionControl starts collapsed — just a small "i" icon in the
+//          bottom-right corner. Click expands to show full "OpenFreeMap ©
+//          OpenMapTiles Data from OpenStreetMap". Previously the control
+//          shipped with `open=""` and `maplibregl-compact-show`, rendering the
+//          full 350px attribution block across the center of the map.
 // v1.4.0: POI pins more prominent — radius 7→10→13 (was 6→8→10), stroke 3px,
 //          minzoom=6 so pins appear earlier.
 // v1.2.0: larger POI pins (radius 8), smooth theme swap via .theme-fading overlay,
@@ -9,7 +14,7 @@
 //          are scoped to basemap layers only — REGISTRY layers (boundary/wedge/pois)
 //          keep their own theme-driven colors via paintsForTheme().
 export const name = 'map';
-export const version = '1.4.0';
+export const version = '1.5.0';
 export const deps = [];
 
 const STYLE_URLS = {
@@ -249,6 +254,7 @@ export function init({ app, events, log }) {
           container.parentElement.parentElement.classList.remove('theme-fading');
         }
         ensureLayers();
+        collapseAttribution();
       });
       map.once('idle', () => {
         if (container?.parentElement?.parentElement) {
@@ -279,6 +285,54 @@ export function init({ app, events, log }) {
     });
   }
 
+  // v1.5.0 — MapLibre's compact AttributionControl renders open by default,
+// filling the center of the map with the full attribution string. Force it
+// closed so only the small "i" icon shows until the user taps it.
+//
+// MapLibre's compact control uses the `maplibregl-compact-show` class to
+// drive visibility (NOT the `<details>` open attribute). We (a) strip both on
+// init so the user sees only the "i" icon, and (b) attach a MutationObserver
+// that keeps the open attribute in sync with the class — so if MapLibre
+// re-adds compact-show after a style swap, the visual state follows.
+  let _attribObserver = null;
+  function collapseAttribution() {
+    const el = document.querySelector('.maplibregl-ctrl-attrib');
+    if (!el) {
+      // Element not yet in DOM — wait for it via DOM observer.
+      if (_attribObserver) return;
+      _attribObserver = new MutationObserver(() => {
+        if (document.querySelector('.maplibregl-ctrl-attrib')) {
+          _attribObserver.disconnect();
+          _attribObserver = null;
+          collapseAttribution();
+        }
+      });
+      _attribObserver.observe(document.documentElement, { childList: true, subtree: true });
+      return;
+    }
+    // Initial collapse — strip both the open attribute and compact-show class.
+    el.removeAttribute('open');
+    el.classList.remove('maplibregl-compact-show');
+    // Keep `open` in sync with the compact-show class going forward.
+    const sync = () => {
+      if (el.classList.contains('maplibregl-compact-show')) el.setAttribute('open', '');
+      else el.removeAttribute('open');
+    };
+    if (!el._cmSyncAttached) {
+      _attribObserver = new MutationObserver(sync);
+      _attribObserver.observe(el, { attributes: true, attributeFilter: ['class'] });
+      el._cmSyncAttached = true;
+    }
+    // Defensive: MapLibre may re-add compact-show right after style swap.
+    // Force-collapse for the next ~1.5s in case something races us.
+    let attempts = 0;
+    const id = setInterval(() => {
+      const e = document.querySelector('.maplibregl-ctrl-attrib');
+      if (!e || ++attempts > 8) { clearInterval(id); return; }
+      if (e.classList.contains('maplibregl-compact-show')) return;
+    }, 150);
+  }
+
   function initMap(container, opts = {}) {
     const styleName = opts.style || 'positron';
     const styleUrl = STYLE_URLS[styleName] || styleName;
@@ -291,7 +345,14 @@ export function init({ app, events, log }) {
     });
     currentStyle = styleName;
     map.addControl(new window.maplibregl.NavigationControl({ showCompass: false }), 'top-right');
-    map.on('load', () => { ensureLayers(); events.emit('map:registered'); });
+    // Collapse attribution immediately (control element already exists in DOM)
+    // and again after load (defensive — MapLibre may re-render on style swap).
+    collapseAttribution();
+    map.on('load', () => {
+      ensureLayers();
+      collapseAttribution();
+      events.emit('map:registered');
+    });
     return map;
   }
 

@@ -1,4 +1,5 @@
 // versions.js - aggregated module versions. v1.0.0
+// v1.0.3: APP_VERSION bumped to 2.5.1 (map 1.5.0 attribution collapsed).
 // v1.0.2: APP_VERSION bumped to 2.5.0 (sheet 1.4.0 lottery badge,
 //          poi 1.3.0 lottery-priority dedup).
 // v1.0.1: APP_VERSION bumped to 2.3.0 (wedge 1.1.0, city 1.1.0,
@@ -21,7 +22,7 @@ import { name as dbgN, version as dbgV } from '../modules/debug-hud/index.js';
 import { name as backN, version as backV } from '../modules/back-to-city/index.js';
 
 export const CORE_VERSION = '1.0.0';
-export const APP_VERSION = '2.5.0';
+export const APP_VERSION = '2.5.1';
 export const MODULES = {
   [apiN]: apiV,
   [themeN]: themeV,

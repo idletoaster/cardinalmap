@@ -238,8 +238,36 @@ body {
 /* MapLibre controls */
 .maplibregl-ctrl-top-right, .maplibregl-ctrl-top-left { display: none; }
 .maplibregl-ctrl-bottom-right { margin-bottom: calc(var(--sheet-collapsed-h) + var(--safe-bottom) + 8px); }
-.maplibregl-ctrl-attrib { background: rgba(0,0,0,.55); color: #fff; }
+
+/* Attribution control — small "i" icon by default (v1.5.0).
+   MapLibre renders a <details> that ships with `open=""` and
+   `maplibregl-compact-show`, painting 350px of text across the map.
+   We strip those in map/index.js collapseAttribution() so only the
+   button shows; clicking it expands to the full attribution. */
+.maplibregl-ctrl-attrib {
+  background: rgba(0,0,0,.55);
+  color: #fff;
+  border-radius: 999px;
+  font-size: 12px;
+  max-width: 26px;
+  max-height: 26px;
+  overflow: hidden;
+  transition: max-width .18s ease, max-height .18s ease, border-radius .18s ease;
+}
 .maplibregl-ctrl-attrib a { color: #d2d8df; }
+.maplibregl-ctrl-attrib.maplibregl-compact-show {
+  max-width: calc(100vw - 32px);
+  max-height: 60vh;
+  border-radius: 12px;
+  padding: 4px 8px;
+  background: rgba(0,0,0,.78);
+}
+.maplibregl-ctrl-attrib:not(.maplibregl-compact-show) .maplibregl-ctrl-attrib-inner { display: none; }
+.maplibregl-ctrl-attrib-button {
+  background-color: transparent !important;
+  display: block;
+  cursor: pointer;
+}
 
 /* POI popup */
 .maplibregl-popup-content {
