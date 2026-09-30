@@ -1,6 +1,10 @@
-// theme module - ThemeManager with light/dark/system. v1.0.0
+// theme module - ThemeManager with light/dark/system. v1.0.1
+// v1.0.1: cycle() now toggles between light and dark based on the resolved
+//          theme (one click = one visible flip). Previously cycled through
+//          light→dark→system→light, so a user on explicit 'dark' with an
+//          OS-dark preference needed two clicks to land on light.
 export const name = 'theme';
-export const version = '1.0.0';
+export const version = '1.0.1';
 export const deps = ['map'];
 
 const BASEMAPS = { light: 'positron', dark: 'dark_liberty' };
@@ -55,10 +59,14 @@ export function init({ app, events, state, log }) {
     applyAll();
   }
   function toggle() { set(state.get('theme') === 'dark' ? 'light' : 'dark'); }
+  // v1.0.1: cycle is a true toggle between light and dark — one click flips
+  //          the visible basemap. Previously cycled through light→dark→
+  //          system→light, so a user on explicit 'dark' needed two clicks
+  //          to land on light (first click went to 'system' which resolved
+  //          back to dark if the OS preferred dark scheme).
   function cycle() {
-    const cur = state.get('theme');
-    const next = cur === 'light' ? 'dark' : cur === 'dark' ? 'system' : 'light';
-    set(next);
+    const cur = resolveName(state.get('theme'));
+    set(cur === 'dark' ? 'light' : 'dark');
   }
 
   mql = window.matchMedia('(prefers-color-scheme: dark)');

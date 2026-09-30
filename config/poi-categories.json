@@ -41,13 +41,17 @@
     },
     {
       "id": "lottery_yes",
-      "label": "Lottery Sellers (lottery=yes)",
+      "label": "Lottery Sellers",
       "icon": "ticket",
       "color": "#8e44ad",
       "enabled": true,
       "overpass": {
         "selectors": [
-          ["lottery", "yes"]
+          ["lottery", "yes"],
+          ["amenity", "fuel"],
+          ["shop", "supermarket"],
+          ["shop", "department_store"],
+          ["shop", "kiosk"]
         ],
         "outFields": ["name", "addr:street", "addr:housenumber", "addr:city", "addr:state", "addr:postcode", "opening_hours", "phone", "website", "brand"]
       }

@@ -1,4 +1,10 @@
 // versions.js - aggregated module versions. v1.0.0
+// v1.0.6: APP_VERSION bumped to 2.5.4 — UX fixes batch (map 1.8.0
+//          attribution bottom-left + dark label hierarchy, theme 1.0.1
+//          cycle() is a true light/dark toggle, back-to-city 1.2.1
+//          resets sheet to 'mini', poi-categories lottery_yes expanded
+//          to include gas stations / supermarkets / department stores /
+//          kiosks per user request "list all the gas stations as well").
 // v1.0.5: APP_VERSION bumped to 2.5.3 (map 1.7.0 Google Maps dark palette).
 // v1.0.4: APP_VERSION bumped to 2.5.2 (map 1.6.0 modern POI pins).
 // v1.0.3: APP_VERSION bumped to 2.5.1 (map 1.5.0 attribution collapsed).
@@ -24,7 +30,7 @@ import { name as dbgN, version as dbgV } from '../modules/debug-hud/index.js';
 import { name as backN, version as backV } from '../modules/back-to-city/index.js';
 
 export const CORE_VERSION = '1.0.0';
-export const APP_VERSION = '2.5.3';
+export const APP_VERSION = '2.5.4';
 export const MODULES = {
   [apiN]: apiV,
   [themeN]: themeV,

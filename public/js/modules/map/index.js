@@ -1,4 +1,10 @@
-// map module - MapLibre instance, registry, ensureLayers guarded on style. v1.7.0
+// map module - MapLibre instance, registry, ensureLayers guarded on style. v1.8.0
+// v1.8.0: Attribution moved to bottom-left (was bottom-right) so the POI
+//          sheet can't intercept clicks. collapseAttribution() simplified —
+//          only runs on first render so user click toggles stick. Added a
+//          hierarchy to dark-mode label paints so neighborhoods/cities/
+//          arterials read at distinct weights (was single #e8eaed for all).
+// v1.7.0:
 // v1.7.0: Google Maps dark palette — split road override into separate
 //          casing / inner / minor loops so highway rendering keeps its
 //          "outer ring + dark fill" look. Casing now uses a bright
@@ -27,7 +33,7 @@
 //          are scoped to basemap layers only — REGISTRY layers (boundary/wedge/pois)
 //          keep their own theme-driven colors via paintsForTheme().
 export const name = 'map';
-export const version = '1.7.0';
+export const version = '1.8.0';
 export const deps = [];
 
 const STYLE_URLS = {
@@ -263,7 +269,43 @@ function applyBasemapOverrides(map, theme) {
                     id.startsWith('waterway_label') || id.startsWith('transit') ||
                     id.startsWith('housenum');
     if (!isLabel) continue;
-    safeSetPaint(map, id, 'text-color', '#e8eaed');
+    // v1.8.0 — Label hierarchy. Previously every label was painted the
+    // same color (#e8eaed) which made neighborhoods, arterials and city
+    // names blur into one another on dark backgrounds. Now:
+    //   • place_label_*city/state  → bright white   (most prominent)
+    //   • place_label_*town        → soft white     (next tier)
+    //   • place_label_*suburb/village/neighbourhood → dim grey
+    //   • road_label major         → medium white
+    //   • road_label minor         → dim grey       (less prominent)
+    //   • waterway/water labels    → light blue
+    //   • transit                  → medium grey
+    //   • housenum                 → dim grey
+    let color;
+    if (id.startsWith('place_label')) {
+      if (id.includes('city') || id.includes('state') || id.includes('country')) {
+        color = '#ffffff';
+      } else if (id.includes('town')) {
+        color = '#e8eaed';
+      } else {
+        // suburb, village, neighbourhood, hamlet, quarter, locality
+        color = '#9aa3ad';
+      }
+    } else if (id.startsWith('road_label') || id.includes('road_label')) {
+      if (id.includes('minor') || id.includes('service') || id.includes('path') || id.includes('track')) {
+        color = '#9aa3ad';
+      } else {
+        color = '#dadde2';
+      }
+    } else if (id.startsWith('waterway_label') || id.startsWith('water_label')) {
+      color = '#9ec3ff';
+    } else if (id.startsWith('transit')) {
+      color = '#b6bcc6';
+    } else if (id.startsWith('housenum')) {
+      color = '#7d858f';
+    } else {
+      color = '#dadde2';
+    }
+    safeSetPaint(map, id, 'text-color', color);
     safeSetPaint(map, id, 'text-halo-color', 'rgba(26,26,26,1)');
     safeSetPaint(map, id, 'text-halo-width', 1.6);
     safeSetPaint(map, id, 'text-halo-blur', 0.4);
@@ -353,11 +395,13 @@ export function init({ app, events, log }) {
 // filling the center of the map with the full attribution string. Force it
 // closed so only the small "i" icon shows until the user taps it.
 //
-// MapLibre's compact control uses the `maplibregl-compact-show` class to
-// drive visibility (NOT the `<details>` open attribute). We (a) strip both on
-// init so the user sees only the "i" icon, and (b) attach a MutationObserver
-// that keeps the open attribute in sync with the class — so if MapLibre
-// re-adds compact-show after a style swap, the visual state follows.
+// v1.8.0 — Simplified: only collapse on initial creation / style swap.
+// Previous code had a no-op setInterval and a MutationObserver that stripped
+// the `open` attribute after the user clicked, which sometimes caused the
+// click toggle to fail. We now let MapLibre own the toggle once the element
+// is in the DOM — the user clicks the <summary> button, MapLibre's onclick
+// handler adds/removes `maplibregl-compact-show`, and CSS shows/hides inner
+// text. We only collapse once on initial render (idempotent via flag).
   let _attribObserver = null;
   function collapseAttribution() {
     const el = document.querySelector('.maplibregl-ctrl-attrib');
@@ -374,27 +418,13 @@ export function init({ app, events, log }) {
       _attribObserver.observe(document.documentElement, { childList: true, subtree: true });
       return;
     }
-    // Initial collapse — strip both the open attribute and compact-show class.
-    el.removeAttribute('open');
-    el.classList.remove('maplibregl-compact-show');
-    // Keep `open` in sync with the compact-show class going forward.
-    const sync = () => {
-      if (el.classList.contains('maplibregl-compact-show')) el.setAttribute('open', '');
-      else el.removeAttribute('open');
-    };
-    if (!el._cmSyncAttached) {
-      _attribObserver = new MutationObserver(sync);
-      _attribObserver.observe(el, { attributes: true, attributeFilter: ['class'] });
-      el._cmSyncAttached = true;
+    // Collapse only on first encounter. After that, leave the user's
+    // open/closed state alone so click toggles stick.
+    if (!el._cmInitialCollapseDone) {
+      el.removeAttribute('open');
+      el.classList.remove('maplibregl-compact-show');
+      el._cmInitialCollapseDone = true;
     }
-    // Defensive: MapLibre may re-add compact-show right after style swap.
-    // Force-collapse for the next ~1.5s in case something races us.
-    let attempts = 0;
-    const id = setInterval(() => {
-      const e = document.querySelector('.maplibregl-ctrl-attrib');
-      if (!e || ++attempts > 8) { clearInterval(id); return; }
-      if (e.classList.contains('maplibregl-compact-show')) return;
-    }, 150);
   }
 
   function initMap(container, opts = {}) {
@@ -409,6 +439,11 @@ export function init({ app, events, log }) {
     });
     currentStyle = styleName;
     map.addControl(new window.maplibregl.NavigationControl({ showCompass: false }), 'top-right');
+    // v1.8.0: Attribution moved to bottom-left (was bottom-right) so the
+    // POI sheet can't intercept clicks on it. User feedback: the small
+    // info icon above the POI bar didn't expand on click because the
+    // sheet sometimes overlapped it.
+    map.addControl(new window.maplibregl.AttributionControl({ compact: true }), 'bottom-left');
     // Collapse attribution immediately (control element already exists in DOM)
     // and again after load (defensive — MapLibre may re-render on style swap).
     collapseAttribution();

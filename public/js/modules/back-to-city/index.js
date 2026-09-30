@@ -4,11 +4,15 @@
 //   2. viewMode === 'city' but map has been panned/zoomed away from the
 //      initial fitToBoundary call.
 // In either case, clicking recenters on state.boundary and clears wedge/POI.
+// v1.2.1 — clicking back-to-city resets the sheet to 'mini' instead of
+//          'peek' so the POI bar stays minimized (was 'peek' which expanded
+//          the sheet after every back click). User feedback: "clicking the
+//          blue back arrow button expands the POI bar".
 // v1.2.0 — use map.idle (not setTimeout) for captureFit so we land on the
 // truly-final transform; gate moveend updates with an ignore-window so
 // in-flight fitToBoundary animations don't spuriously show the button.
 export const name = 'back-to-city';
-export const version = '1.2.0';
+export const version = '1.2.1';
 export const deps = ['map', 'state', 'events', 'sheet'];
 
 const PAN_THRESHOLD_DEG = 0.0008;   // ~80m at CA latitude
@@ -120,7 +124,7 @@ export function init({ app, state, events, log }) {
       mapApi.setSource('pois', { type: 'FeatureCollection', features: [] });
       if (boundary) mapApi.fitToBoundary(boundary, { duration: 600 });
     }
-    app.get('sheet')?.set?.('peek');
+    app.get('sheet')?.set?.('mini');
     events.emit('view:change', { mode: 'city' });
     ignoreMoveEndUntil = Date.now() + 900;
     setTimeout(captureFit, 700);

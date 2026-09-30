@@ -235,9 +235,20 @@ body {
 .skeleton.small { flex: 0 0 40%; }
 @keyframes skel { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 
-/* MapLibre controls */
-.maplibregl-ctrl-top-right, .maplibregl-ctrl-top-left { display: none; }
-.maplibregl-ctrl-bottom-right { margin-bottom: calc(var(--sheet-collapsed-h) + var(--safe-bottom) + 8px); }
+/* MapLibre controls
+   - top-right: NavigationControl (zoom +/-). We want this visible — the
+     user needs manual zoom controls. (v1.7.0 used to hide both top corners
+     but that hid the zoom buttons too.)
+   - top-left: empty, leave alone.
+   - bottom-right: AttributionControl. We moved it to bottom-left to avoid
+     the POI sheet (v1.8.0). */
+.maplibregl-ctrl-top-right {
+  top: calc(var(--safe-top) + 60px);
+  margin-right: 8px;
+}
+.maplibregl-ctrl-top-left { display: none; }
+.maplibregl-ctrl-bottom-right { display: none; }   /* attribution moved to bottom-left */
+.maplibregl-ctrl-bottom-left  { margin-bottom: calc(var(--sheet-collapsed-h) + var(--safe-bottom) + 8px); margin-left: 8px; }
 
 /* Attribution control — small "i" icon by default (v1.5.0).
    MapLibre renders a <details> that ships with `open=""` and

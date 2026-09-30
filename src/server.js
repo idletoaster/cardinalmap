@@ -15,13 +15,13 @@ const directionRoutes = require('./routes/direction');
 const poiRoutes       = require('./routes/poi');
 const adminRoutes     = require('./routes/admin');
 
-const APP_VERSION  = '2.5.3';
+const APP_VERSION  = '2.5.4';
 const CORE_VERSION = '1.0.0';
 const MODULES = {
-  api: '1.2.0', theme: '1.0.0', map: '1.7.0', wedge: '1.1.0', city: '1.3.0',
+  api: '1.2.0', theme: '1.0.1', map: '1.8.0', wedge: '1.1.0', city: '1.3.0',
   direction: '1.1.0', poi: '1.3.0', search: '1.1.0', geolocate: '1.0.0',
   sheet: '1.4.0', compass: '1.1.0', level: '1.1.0', 'style-toggle': '1.0.0',
-  toast: '1.0.0', 'debug-hud': '1.0.0', 'back-to-city': '1.2.0',
+  toast: '1.0.0', 'debug-hud': '1.0.0', 'back-to-city': '1.2.1',
 };
 
 const app = express();
