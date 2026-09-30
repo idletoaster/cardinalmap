@@ -17,7 +17,7 @@ import { name as dbgN, version as dbgV } from '../modules/debug-hud/index.js';
 import { name as backN, version as backV } from '../modules/back-to-city/index.js';
 
 export const CORE_VERSION = '1.0.0';
-export const APP_VERSION = '2.1.0';
+export const APP_VERSION = '2.1.1';
 export const MODULES = {
   [apiN]: apiV,
   [themeN]: themeV,
@@ -27,10 +27,13 @@ export const MODULES = {
   [dirN]: dirV,
   [poiN]: poiV,
   [searchN]: searchV,
+  search: '1.1.0',
   [geoN]: geoV,
   [sheetN]: sheetV,
+  sheet: '1.1.0',
   [compN]: compV,
   [lvlN]: lvlV,
+  level: '1.1.0',
   [stN]: stV,
   [toastN]: toastV,
   [dbgN]: dbgV,

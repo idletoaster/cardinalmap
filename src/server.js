@@ -58,7 +58,7 @@ function buildShellManifest() {
       else if (ent.isFile() && ent.name.endsWith('.js')) {
         const fp = path.join(PUBLIC_DIR_LOCAL, childRel);
         let mtime = 0;
-        try { mtime = fs.statSync(fp).mtimeMs | 0; } catch {}
+        try { mtime = Math.floor(fs.statSync(fp).mtimeMs); } catch {}
         const urlPath = '/' + childRel.split(path.sep).join('/');
         items.push({ path: urlPath, mtime });
       }
@@ -82,7 +82,7 @@ const PUBLIC_DIR = path.join(__dirname, '..', 'public');
 function moduleMtime(absRel) {
   try {
     const fp = path.join(PUBLIC_DIR, absRel);
-    return String(fs.statSync(fp).mtimeMs | 0);
+    return String(Math.floor(fs.statSync(fp).mtimeMs));
   } catch { return String(Date.now()); }
 }
 
