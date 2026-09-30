@@ -1,7 +1,10 @@
 // poi module - POI layers, popups, click handler, POI-zoom view-mode.
 // Loads POIs for the active direction wedge from /api/direction, dedupes
-// defensively on the client, and renders them on the map. v1.2.0 adds a
+// defensively on the client, and renders them on the map. v1.2.0 added a
 // popup with a Directions button (deep-links to Google Maps / Apple Maps).
+// v1.3.0: dedup now prefers lottery_* categories over generic fuel/convenience
+//          when the same OSM feature is tagged both ways. Mirrors the
+//          server-side ORDER BY in azimuth.js v1.2.0.
 export const name = 'poi';
 export const version = '1.3.0';
 export const deps = ['map', 'state', 'events', 'api'];
@@ -16,9 +19,14 @@ function dedupByOsmId(features) {
     const prior = seen.get(key);
     if (!prior) { seen.set(key, f); continue; }
     // Prefer the row with more populated contact/info.
-    const score = (p) =>
-      (p.name ? 1 : 0) + (p.brand ? 1 : 0) + (p.phone ? 1 : 0) +
-      (p.website ? 1 : 0) + (p.opening_hours ? 1 : 0) + (p.address ? 1 : 0);
+    // Lottery categories get a +5 boost so a gas station tagged lottery=yes
+    // surfaces as a lottery retailer (not "Gas Station") when duplicated.
+    const score = (p) => {
+      let s = (p.name ? 1 : 0) + (p.brand ? 1 : 0) + (p.phone ? 1 : 0) +
+              (p.website ? 1 : 0) + (p.opening_hours ? 1 : 0) + (p.address ? 1 : 0);
+      if ((p.category_id || '').startsWith('lottery')) s += 5;
+      return s;
+    };
     if (score(props) > score(prior.properties || {})) seen.set(key, f);
   }
   return Array.from(seen.values());

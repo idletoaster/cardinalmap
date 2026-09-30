@@ -1,10 +1,14 @@
-// sheet module - state machine + title/subtitle/count/list rendering. v1.3.0
+// sheet module - state machine + title/subtitle/count/list rendering. v1.4.0
+// v1.4.0: lottery categories (lottery_shop, lottery_yes) now render with
+//          a friendly "Lottery" label + ★ badge in the POI list, so users
+//          can spot lottery retailers at a glance instead of seeing the
+//          raw "lottery yes" / "lottery shop" category_id strings.
 // v1.3.0: stay at 'mini' on city:selected instead of auto-expanding to
 //          'peek' (user feedback: POI sheet was overlapping the map).
 //          Toggle button is now bidirectional (up=expand, down=minimize)
 //          and updates its arrow glyph to match the current state.
 export const name = 'sheet';
-export const version = '1.3.0';
+export const version = '1.4.0';
 export const deps = ['state', 'events', 'poi'];
 
 // Order matters: cycle() rotates through these. 'mini' is the minimize
@@ -132,14 +136,24 @@ export function init({ app, state, events, log }) {
       const li = document.createElement('li');
       li.dataset.osmId = props.osm_id || '';
       if (sel && (sel.properties?.osm_id === props.osm_id)) li.classList.add('selected');
-      const cat = (props.category_id || '').replace(/_/g, ' ');
+      const catRaw = props.category_id || '';
+      // Lottery categories get a friendly label + a small badge so users
+      // can spot lottery retailers at a glance (vs raw "lottery yes").
+      let cat;
+      let isLottery = false;
+      if (catRaw === 'lottery_shop' || catRaw === 'lottery_yes') {
+        cat = 'Lottery';
+        isLottery = true;
+      } else {
+        cat = catRaw.replace(/_/g, ' ');
+      }
       const dist = props.distance_m != null
         ? `${(props.distance_m / 1609.34).toFixed(2)} mi`
         : '';
       li.innerHTML = `
         <div style="flex:1;min-width:0;">
-          <div class="name">${props.name || 'Unnamed'}</div>
-          <div class="meta">${[cat, props.address, dist].filter(Boolean).join(' - ')}</div>
+          <div class="name">${props.name || 'Unnamed'}${isLottery ? ' <span class="lottery-badge" aria-label="Lottery retailer">★</span>' : ''}</div>
+          <div class="meta">${[cat, props.address, dist].filter(Boolean).join(' \u00b7 ')}</div>
         </div>
       `;
       li.addEventListener('click', () => {

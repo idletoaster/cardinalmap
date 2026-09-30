@@ -1,6 +1,11 @@
 'use strict';
 
-// azimuth.js - ST_Azimuth 8-direction spatial query. v1.1.0 (server-side dedup).
+// azimuth.js - ST_Azimuth 8-direction spatial query. v1.2.0 (lottery-priority dedup).
+// v1.2.0: when the same OSM feature is tagged under multiple categories
+//          (e.g. amenity=fuel + lottery=yes), prefer the lottery_* row over
+//          the generic category. This way a gas station that sells lottery
+//          shows up as "Lottery" not "Gas Station" — matching what the user
+//          is actually looking for. Closest distance breaks remaining ties.
 
 const { sectorFor, isValidDirection } = require('./sectors');
 const pool = require('../db/pool');
@@ -73,7 +78,12 @@ async function queryDirection({ lat, lon, direction, radiusM, categoryIds }) {
         ST_Distance(origin.origin_geog, p.geom::geography)         AS distance_m,
         ROW_NUMBER() OVER (
           PARTITION BY p.osm_type, p.osm_id
-          ORDER BY ST_Distance(origin.origin_geog, p.geom::geography) ASC, p.id ASC
+          ORDER BY
+            -- Lottery categories win duplicates so a fuel/convenience store
+            -- tagged lottery=yes surfaces as a lottery retailer, not as fuel.
+            CASE WHEN p.category_id LIKE 'lottery%' THEN 0 ELSE 1 END ASC,
+            ST_Distance(origin.origin_geog, p.geom::geography) ASC,
+            p.id ASC
         ) AS rn
       FROM pois p, origin
       WHERE ST_DWithin(p.geom::geography, origin.origin_geog, $3)
