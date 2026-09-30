@@ -5,14 +5,16 @@
   --fg: #1a1a1a;
   --fg-2: #555;
   --accent: #0a84ff;
+  --accent-2: #ffd166;          /* warm yellow for dark-mode visibility */
   --shadow: 0 6px 18px rgba(0,0,0,.18);
-  --sheet-collapsed-h: 96px;
+  --sheet-collapsed-h: 110px;
   --sheet-peek-h: 38vh;
-  --sheet-full-h: 80vh;
+  --sheet-full-h: 82vh;
   --topbar-h: 56px;
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --radius: 14px;
+  --topbar-max: 720px;          /* desktop cap for the topbar/search */
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -32,7 +34,7 @@ body {
 }
 #map { position: fixed; inset: 0; z-index: 0; }
 
-/* Topbar */
+/* Topbar — capped on desktop so search doesn't span the whole screen */
 .topbar {
   position: fixed; top: 0; left: 0; right: 0; z-index: 10;
   display: flex; align-items: center; gap: 8px;
@@ -41,13 +43,21 @@ body {
   pointer-events: none;
 }
 .topbar > * { pointer-events: auto; }
+.topbar-wrap {
+  width: 100%;
+  max-width: var(--topbar-max);
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 .icon-btn {
   background: var(--bg); color: var(--fg); border: none; border-radius: 999px;
   width: 40px; height: 40px; display: inline-flex; align-items: center; justify-content: center;
-  box-shadow: var(--shadow); cursor: pointer;
+  box-shadow: var(--shadow); cursor: pointer; flex-shrink: 0;
 }
 .icon-btn:active { transform: scale(.96); }
-.search-wrap { position: relative; flex: 1; }
+.search-wrap { position: relative; flex: 1; min-width: 0; }
 #search-input {
   width: 100%; height: 40px; padding: 0 14px;
   border: none; border-radius: 999px; outline: none;
@@ -69,7 +79,7 @@ body {
 .search-results li:last-child { border-bottom: 0; }
 .search-results li:active { background: var(--bg-2); }
 
-/* Compass */
+/* Compass — pinned to the left, above the bottom sheet */
 .compass {
   position: fixed; left: 12px; bottom: calc(var(--sheet-collapsed-h) + var(--safe-bottom) + 12px);
   z-index: 5; display: grid;
@@ -88,9 +98,9 @@ body {
 }
 .compass .dir:active { background: var(--bg-2); }
 .compass .dir.active { background: var(--accent); color: white; }
-.compass .dir.center { font-size: 18px; }
+.compass .dir.center { font-size: 18px; color: var(--fg-2); }
 
-/* Bottom sheet */
+/* Bottom sheet — taller collapsed state so the first row is always visible */
 .sheet {
   position: fixed; left: 0; right: 0; bottom: 0;
   background: var(--bg); border-top-left-radius: 18px; border-top-right-radius: 18px;
@@ -101,24 +111,36 @@ body {
   padding: 0 14px calc(var(--safe-bottom) + 14px) 14px;
   display: flex; flex-direction: column;
   touch-action: pan-y;
+  max-width: var(--topbar-max);
+  margin: 0 auto;
 }
 .sheet.expanded { height: var(--sheet-full-h); }
 .sheet.peek { height: var(--sheet-peek-h); }
 .sheet-handle {
   width: 44px; height: 4px; background: var(--fg-2); opacity: .35;
-  margin: 8px auto 8px auto; border-radius: 2px;
+  margin: 8px auto 8px auto; border-radius: 2px; cursor: pointer;
 }
-.sheet-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.sheet-header {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  cursor: pointer;
+}
+.sheet-toggle {
+  background: none; border: none; color: var(--fg-2); cursor: pointer;
+  padding: 4px 6px; border-radius: 6px; font-size: 18px; line-height: 1;
+}
+.sheet-toggle:active { background: var(--bg-2); }
 .sheet-title { font-weight: 600; font-size: 16px; }
 .sheet-subtitle { font-size: 12px; color: var(--fg-2); margin-top: 2px; }
 .pill {
   background: var(--bg-2); color: var(--fg);
   padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 600;
+  flex-shrink: 0;
 }
 .sheet-list { list-style: none; padding: 0; margin: 8px 0 0 0; overflow-y: auto; flex: 1; }
 .sheet-list li {
   display: flex; gap: 10px; padding: 10px 6px;
   border-bottom: 1px solid var(--bg-2); cursor: pointer;
+  align-items: flex-start;
 }
 .sheet-list li:active { background: var(--bg-2); }
 .cat-dot {
@@ -126,29 +148,48 @@ body {
 }
 .poi-name { font-weight: 600; }
 .poi-meta { font-size: 12px; color: var(--fg-2); margin-top: 2px; }
-.poi-dist { font-size: 12px; color: var(--fg-2); margin-left: auto; }
+.poi-dist { font-size: 12px; color: var(--fg-2); margin-left: auto; white-space: nowrap; }
 
-/* Skeletons */
-.skeleton-row { display: flex; flex-direction: column; gap: 6px; }
+.skeleton-row { display: flex; flex-direction: column; gap: 6px; padding: 10px 6px; }
 .skeleton { height: 14px; background: var(--bg-2); border-radius: 6px; }
 .skeleton.small { width: 60%; height: 10px; }
 
 /* Toast */
 .toast {
-  position: fixed; left: 50%; bottom: calc(var(--sheet-collapsed-h) + var(--safe-bottom) + 110px);
-  transform: translateX(-50%);
+  position: fixed; left: 50%; transform: translateX(-50%);
+  bottom: calc(var(--sheet-collapsed-h) + var(--safe-bottom) + 130px);
   background: rgba(0,0,0,.85); color: white;
   padding: 10px 14px; border-radius: 999px;
-  z-index: 30; font-size: 13px;
+  z-index: 30; font-size: 13px; max-width: 90vw;
 }
 
-/* MapLibre popup theming */
+/* MapLibre popup theming + POI popup content */
 .maplibregl-popup-content {
   background: var(--bg) !important;
   color: var(--fg) !important;
   border-radius: 12px !important;
-  padding: 10px 12px !important;
+  padding: 12px 14px !important;
   box-shadow: var(--shadow) !important;
 }
-.maplibregl-popup-tip { display: none !important; }
+.maplibregl-popup-close-button {
+  color: var(--fg-2) !important;
+  font-size: 18px !important;
+  padding: 0 6px !important;
+}
+.poi-popup .popup-name { font-weight: 700; font-size: 15px; margin-bottom: 2px; }
+.poi-popup .popup-brand { font-size: 12px; color: var(--fg-2); margin-bottom: 4px; }
+.poi-popup .popup-addr { font-size: 13px; margin-bottom: 4px; }
+.poi-popup .popup-cat { font-size: 11px; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 4px; font-weight: 600; }
+.poi-popup .popup-dist { font-size: 12px; color: var(--fg-2); margin-bottom: 4px; }
+.poi-popup .popup-hours { font-size: 12px; margin-bottom: 4px; }
+.poi-popup a { color: var(--accent); text-decoration: none; }
 .maplibregl-ctrl-attrib { font-size: 10px !important; }
+
+/* Move MapLibre controls away from the topbar (which has the style/locate buttons). */
+.maplibregl-ctrl-top-right, .maplibregl-ctrl-top-left { display: none; }
+.maplibregl-ctrl-bottom-right { margin-bottom: calc(var(--sheet-collapsed-h) + var(--safe-bottom) + 8px); }
+
+/* Desktop: cap widths and add gentle shadow */
+@media (min-width: 900px) {
+  .topbar-wrap { box-shadow: var(--shadow); border-radius: 999px; background: transparent; }
+}

@@ -1,26 +1,65 @@
-// Bottom-sheet controller + POI list rendering.
+// Bottom-sheet controller + POI list rendering. Clear expand/collapse UX:
+//   - The chevron button (#sheet-toggle-btn) explicitly expands or collapses.
+//   - The drag handle (#sheet-handle) also toggles.
+//   - The header row toggles.
+//   - Dragging from collapsed->peek->expanded is wired with simple touch/mouse handlers.
 
 export function createBottomSheet(rootEl) {
-  const handle = rootEl.querySelector('#sheet-handle');
-  const title  = rootEl.querySelector('#sheet-title');
-  const sub    = rootEl.querySelector('#sheet-subtitle');
-  const count  = rootEl.querySelector('#sheet-count');
-  const list   = rootEl.querySelector('#sheet-list');
+  const handle      = rootEl.querySelector('#sheet-handle');
+  const toggleBtn   = rootEl.querySelector('#sheet-toggle-btn');
+  const header      = rootEl.querySelector('.sheet-header');
+  const title       = rootEl.querySelector('#sheet-title');
+  const sub         = rootEl.querySelector('#sheet-subtitle');
+  const count       = rootEl.querySelector('#sheet-count');
+  const list        = rootEl.querySelector('#sheet-list');
 
-  function expand() { rootEl.classList.remove('collapsed', 'peek'); rootEl.classList.add('expanded'); }
-  function collapse() { rootEl.classList.remove('expanded', 'peek'); rootEl.classList.add('collapsed'); }
+  function expand()  { rootEl.classList.remove('collapsed', 'peek'); rootEl.classList.add('expanded'); updateToggle(); }
+  function collapse(){ rootEl.classList.remove('expanded', 'peek'); rootEl.classList.add('collapsed'); updateToggle(); }
+  function peek()    { rootEl.classList.remove('collapsed', 'expanded'); rootEl.classList.add('peek'); updateToggle(); }
 
-  // Tap on the sheet (but not on a list item) toggles expand/collapse.
-  rootEl.addEventListener('click', (e) => {
-    if (e.target.closest('li')) return;
-    if (e.target === handle) return toggle();
-    if (rootEl.classList.contains('collapsed')) expand();
-  });
+  function isCollapsed() { return rootEl.classList.contains('collapsed'); }
+  function isExpanded()  { return rootEl.classList.contains('expanded'); }
+
   function toggle() {
-    if (rootEl.classList.contains('collapsed')) expand();
-    else if (rootEl.classList.contains('expanded')) collapse();
-    else expand();
+    if (isCollapsed()) expand();
+    else collapse();
   }
+
+  function updateToggle() {
+    if (!toggleBtn) return;
+    toggleBtn.textContent = isCollapsed() ? '↑' : '↓';
+    toggleBtn.setAttribute('aria-label', isCollapsed() ? 'Expand list' : 'Collapse list');
+  }
+
+  // Tap on the chevron or handle: toggle.
+  handle.addEventListener('click', toggle);
+  if (toggleBtn) toggleBtn.addEventListener('click', (e) => { e.stopPropagation(); toggle(); });
+
+  // Tap on the header (but not on a list item, handle, or chevron) toggles.
+  header.addEventListener('click', (e) => {
+    if (e.target.closest('#sheet-toggle-btn')) return;
+    if (e.target === handle) return;
+    toggle();
+  });
+
+  // Simple drag-to-resize: drag down collapses, drag up expands.
+  let dragStart = null;
+  const onDown = (e) => { dragStart = (e.touches ? e.touches[0].clientY : e.clientY); };
+  const onUp = (e) => {
+    if (dragStart == null) return;
+    const y = (e.changedTouches ? e.changedTouches[0].clientY : e.clientY);
+    const dy = y - dragStart;
+    dragStart = null;
+    if (Math.abs(dy) < 30) return;
+    if (dy > 30) collapse();
+    else expand();
+  };
+  handle.addEventListener('mousedown', onDown);
+  handle.addEventListener('touchstart', onDown, { passive: true });
+  document.addEventListener('mouseup', onUp);
+  document.addEventListener('touchend', onUp);
+
+  updateToggle();
 
   return {
     showSkeleton() {
@@ -70,7 +109,6 @@ export function createBottomSheet(rootEl) {
       }
       count.textContent = String(pois.length);
     },
-    expand,
-    collapse,
+    expand, collapse, peek, isCollapsed, isExpanded,
   };
 }

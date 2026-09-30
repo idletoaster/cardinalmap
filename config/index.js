@@ -20,6 +20,11 @@ function envStr(name, fallback) {
   const v = process.env[name];
   return v == null || v === '' ? fallback : v;
 }
+function envCsv(name, fallback) {
+  const v = process.env[name];
+  if (v == null || v === '') return fallback;
+  return v.split(',').map((s) => s.trim()).filter(Boolean);
+}
 
 const cfg = {
   port: envInt('PORT', 3000),
@@ -39,6 +44,10 @@ const cfg = {
   },
   overpass: {
     baseUrl: envStr('OVERPASS_BASE_URL', 'https://overpass-api.de/api'),
+    fallbacks: envCsv('OVERPASS_FALLBACK_URLS', [
+      'https://overpass.openstreetmap.fr/api',
+      'https://overpass.osm.ch/api',
+    ]),
     userAgent: envStr('OVERPASS_USER_AGENT', 'CardinalMap/1.0'),
   },
   app: {

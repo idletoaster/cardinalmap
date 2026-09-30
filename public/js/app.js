@@ -5,21 +5,23 @@ import { createCompass } from './compass.js';
 import { createBottomSheet } from './bottomSheet.js';
 import { createSearch } from './search.js';
 
+// Default location: Irvine, CA.
+const DEFAULT_LOCATION = { lat: 33.6846, lon: -117.8265, label: 'Irvine, CA' };
+
 const state = {
-  origin: null,           // {lat, lon}
+  origin: null,
   originLabel: null,
   regionId: null,
   enabledCats: [],
   catById: {},
   activeDir: null,
+  radiusMiles: 10,
   map: null,
   sheet: null,
 };
 
-// Map of OSM direction -> bearing degrees (used to build wedge polygons).
 const DIR_BEARING = { N:0, NE:45, E:90, SE:135, S:180, SW:225, W:270, NW:315 };
 
-// ----- bootstrap -----
 window.addEventListener('DOMContentLoaded', async () => {
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js').catch((e) => console.warn('SW reg failed', e));
@@ -48,25 +50,40 @@ window.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('locate-btn').addEventListener('click', requestGeolocation);
 
   mapApi.onPoiClick((props) => {
-    // Could pop a MapLibre popup; for now, focus the list row.
-    console.log('poi', props);
+    // Popup is rendered by map.js; we just log + (optional) flyTo.
+    if (props.lon != null && props.lat != null) state.map.flyTo(props.lon, props.lat, 16);
   });
 
-  // Default: Austin, TX.
-  sheet.setHeader({ title: 'Austin, TX', subtitle: 'Loading region…', count: 0 });
+  // Boot to Irvine, CA.
+  sheet.setHeader({ title: DEFAULT_LOCATION.label, subtitle: 'Loading region…', count: 0 });
   sheet.showSkeleton();
-  await resolveAndIngest(30.2672, -97.7431, 'Austin, TX');
+  await resolveAndIngest(DEFAULT_LOCATION.lat, DEFAULT_LOCATION.lon, DEFAULT_LOCATION.label);
 });
 
 async function requestGeolocation() {
-  if (!navigator.geolocation) { toast('Geolocation not supported'); return; }
+  if (!navigator.geolocation) { toast('Geolocation not supported on this device'); return; }
+  // Browsers refuse geolocation on insecure origins (anything other than https:// or localhost).
+  const origin = window.location.origin;
+  const isSecure = window.isSecureContext || origin.startsWith('https://') || origin.startsWith('http://localhost');
+  if (!isSecure) {
+    toast('Geolocation needs HTTPS or localhost. Open via Cloudflare tunnel or use search.');
+    state.sheet.setHeader({ subtitle: 'Open via HTTPS tunnel to enable device location, or use the search bar.' });
+    return;
+  }
   toast('Locating…');
   navigator.geolocation.getCurrentPosition(
     async (pos) => {
       const { latitude, longitude } = pos.coords;
       await resolveAndIngest(latitude, longitude, 'My location');
     },
-    (err) => { toast('Location denied: ' + err.message); },
+    (err) => {
+      console.warn('geolocation error', err);
+      let msg = 'Location denied';
+      if (err.code === err.PERMISSION_DENIED) msg = 'Location permission denied';
+      else if (err.code === err.POSITION_UNAVAILABLE) msg = 'Location unavailable';
+      else if (err.code === err.TIMEOUT) msg = 'Location request timed out';
+      toast(msg + ' — use the search bar instead.');
+    },
     { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
   );
 }
@@ -75,19 +92,22 @@ async function handleSearchPick(result) {
   await resolveAndIngest(result.lat, result.lon, result.display_name.split(',')[0]);
 }
 
-// ----- core flow -----
 async function resolveAndIngest(lat, lon, label) {
   state.origin = { lat, lon };
   state.originLabel = label;
-  state.map.flyTo(lon, lat, 13);
+  state.map.flyTo(lon, lat, 12);
   state.sheet.setHeader({ title: label, subtitle: 'Fetching OSM data…' });
   state.sheet.showSkeleton();
+  state.map.setPOIs(null);
+  state.map.setNeighborhoods(null);
+  state.map.setWedge(null);
 
   try {
     const ctx = await api.locate(lat, lon, label);
     state.regionId = ctx.region_id;
     state.enabledCats = ctx.enabled_categories;
-    state.catById = Object.fromEntries(ctx.enabled_categories.map((c) => [c.id, c]));
+    state.catById = Object.fromEntries(ctx.enabledCats.map((c) => [c.id, c]));
+    state.radiusMiles = ctx.radius_miles || 10;
 
     state.sheet.setHeader({
       title: label,
@@ -95,9 +115,11 @@ async function resolveAndIngest(lat, lon, label) {
       count: 0,
     });
 
-    // Re-render with no direction filter (or keep current).
     if (state.activeDir) await applyDirection(state.activeDir);
-    else { state.map.setPOIs(null); state.map.setNeighborhoods(null); state.map.setWedge(null); state.sheet.render([]); }
+    else {
+      state.sheet.setHeader({ subtitle: `${state.enabledCats.length} categories ready · pick a direction on the compass`, count: 0 });
+      state.sheet.render([], () => {});
+    }
   } catch (e) {
     console.error(e);
     state.sheet.setHeader({ title: label, subtitle: 'Failed: ' + e.message, count: 0 });
@@ -110,9 +132,9 @@ async function handleDirectionChange(dir) {
   if (!state.origin) return;
   if (!dir) {
     state.map.setWedge(null);
-    state.sheet.showSkeleton();
     state.map.setPOIs(null);
-    state.sheet.render([]);
+    state.sheet.setHeader({ subtitle: 'Direction cleared · pick another direction' });
+    state.sheet.render([], () => {});
     return;
   }
   await applyDirection(dir);
@@ -123,7 +145,6 @@ async function applyDirection(dir) {
   const { lat, lon } = state.origin;
   try {
     const data = await api.direction(lat, lon, dir, state.enabledCats.map((c) => c.id));
-    // Tag each POI with its category color.
     const pois = (data.pois || []).map((p) => ({
       ...p,
       color: state.catById[p.category_id]?.color || '#888',
@@ -137,11 +158,11 @@ async function applyDirection(dir) {
         properties: p,
       })),
     };
+    state.map.setWedge(wedgeFC(lat, lon, dir, state.radiusMiles));
     state.map.setPOIs(fc);
-    state.map.setWedge(wedgeFC(lat, lon, dir));
     state.map.fitTo(fc);
     state.sheet.setHeader({
-      subtitle: `${dir} • ${data.count} result${data.count === 1 ? '' : 's'}`,
+      subtitle: `${dir} • ${data.count} result${data.count === 1 ? '' : 's'} within ${state.radiusMiles} mi`,
     });
     state.sheet.render(pois, (p) => state.map.flyTo(p.lon, p.lat, 16));
   } catch (e) {
@@ -151,24 +172,24 @@ async function applyDirection(dir) {
   }
 }
 
-// ----- helpers -----
 function toast(msg) {
   const el = document.getElementById('toast');
   el.textContent = msg;
   el.hidden = false;
   clearTimeout(toast._t);
-  toast._t = setTimeout(() => { el.hidden = true; }, 2400);
+  toast._t = setTimeout(() => { el.hidden = true; }, 2800);
 }
 
-// Build a 45-degree wedge polygon (centered on bearing DIR_BEARING[dir]) as GeoJSON.
-function wedgeFC(lat, lon, dir) {
+// Build a 45-degree wedge polygon as GeoJSON. Radius is in miles and matches the
+// configured search radius so the wedge visually matches the area being queried.
+function wedgeFC(lat, lon, dir, radiusMiles) {
   const bearing = DIR_BEARING[dir];
-  const radiusDeg = 0.06; // ~6-7km at equator; scaled visually on map
-  const steps = 16;
+  const rDeg = milesToLatDeg(radiusMiles);
+  const steps = 24;
   const coords = [[lon, lat]];
   for (let i = 0; i <= steps; i++) {
     const a = bearing - 22.5 + (45 * i / steps);
-    coords.push(offsetLonLat(lon, lat, a, radiusDeg));
+    coords.push(offsetLonLat(lon, lat, a, rDeg));
   }
   coords.push([lon, lat]);
   return {
@@ -176,6 +197,9 @@ function wedgeFC(lat, lon, dir) {
     features: [{ type: 'Feature', geometry: { type: 'Polygon', coordinates: [coords] }, properties: {} }],
   };
 }
+
+const EARTH_RADIUS_M = 6371008.8;
+function milesToLatDeg(mi) { return (mi * 1609.344 / EARTH_RADIUS_M) * (180 / Math.PI); }
 
 function offsetLonLat(lon, lat, bearingDeg, distDeg) {
   const b = (bearingDeg * Math.PI) / 180;
