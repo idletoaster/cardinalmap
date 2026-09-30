@@ -1,0 +1,56 @@
+{
+  "categories": [
+    {
+      "id": "convenience",
+      "label": "Convenience Stores",
+      "icon": "cart",
+      "color": "#1f7aec",
+      "enabled": true,
+      "overpass": {
+        "selectors": [
+          ["shop", "convenience"]
+        ],
+        "outFields": ["name", "addr:street", "addr:housenumber", "addr:city", "addr:state", "addr:postcode", "opening_hours", "phone", "website", "brand"]
+      }
+    },
+    {
+      "id": "fuel",
+      "label": "Gas Stations",
+      "icon": "fuel",
+      "color": "#e67e22",
+      "enabled": true,
+      "overpass": {
+        "selectors": [
+          ["amenity", "fuel"]
+        ],
+        "outFields": ["name", "addr:street", "addr:housenumber", "addr:city", "addr:state", "addr:postcode", "opening_hours", "phone", "website", "brand"]
+      }
+    },
+    {
+      "id": "lottery_shop",
+      "label": "Lottery Retailers (shop)",
+      "icon": "ticket",
+      "color": "#9b59b6",
+      "enabled": true,
+      "overpass": {
+        "selectors": [
+          ["shop", "lottery"]
+        ],
+        "outFields": ["name", "addr:street", "addr:housenumber", "addr:city", "addr:state", "addr:postcode", "opening_hours", "phone", "website", "brand"]
+      }
+    },
+    {
+      "id": "lottery_yes",
+      "label": "Lottery Sellers (lottery=yes)",
+      "icon": "ticket",
+      "color": "#8e44ad",
+      "enabled": true,
+      "overpass": {
+        "selectors": [
+          ["lottery", "yes"]
+        ],
+        "outFields": ["name", "addr:street", "addr:housenumber", "addr:city", "addr:state", "addr:postcode", "opening_hours", "phone", "website", "brand"]
+      }
+    }
+  ]
+}

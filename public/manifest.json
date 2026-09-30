@@ -1,0 +1,17 @@
+{
+  "name": "CardinalMap",
+  "short_name": "CardinalMap",
+  "description": "Find convenience stores, gas stations, and lottery retailers by 8-direction compass.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0a84ff",
+  "theme_color": "#0a84ff",
+  "categories": ["navigation", "lifestyle", "utilities"],
+  "icons": [
+    { "src": "/icons/icon.svg",   "sizes": "any",     "type": "image/svg+xml", "purpose": "any" },
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png",    "purpose": "any maskable" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png",    "purpose": "any maskable" }
+  ]
+}

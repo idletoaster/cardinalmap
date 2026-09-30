@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <meta name="theme-color" content="#0a84ff">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>CardinalMap</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+  <link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+  <div id="map" aria-label="map"></div>
+
+  <!-- Top search bar -->
+  <header class="topbar">
+    <button id="locate-btn" class="icon-btn" aria-label="Use my location" title="Use my location">
+      <svg viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Zm9 3h-2.05A7.002 7.002 0 0 0 13 5.05V3h-2v2.05A7.002 7.002 0 0 0 5.05 11H3v2h2.05A7.002 7.002 0 0 0 11 18.95V21h2v-2.05A7.002 7.002 0 0 0 18.95 13H21v-2Z"/></svg>
+    </button>
+    <div class="search-wrap">
+      <input id="search-input" type="search" placeholder="Search city, county, state" autocomplete="off">
+      <ul id="search-results" class="search-results" hidden></ul>
+    </div>
+    <button id="style-toggle" class="icon-btn" aria-label="Toggle map style" title="Toggle style">
+      <svg viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M12 2a10 10 0 1 0 10 10A10.011 10.011 0 0 0 12 2Zm0 18a8 8 0 1 1 8-8 8.009 8.009 0 0 1-8 8Zm0-14a6 6 0 1 0 6 6 6.006 6.006 0 0 0-6-6Zm0 10a4 4 0 1 1 4-4 4 4 0 0 1-4 4Z"/></svg>
+    </button>
+  </header>
+
+  <!-- Compass -->
+  <nav id="compass" class="compass" aria-label="Direction">
+    <button data-dir="NW" class="dir"><span>NW</span></button>
+    <button data-dir="N"  class="dir"><span>N</span></button>
+    <button data-dir="NE" class="dir"><span>NE</span></button>
+    <button data-dir="W"  class="dir"><span>W</span></button>
+    <button data-dir="C"  class="dir center" title="Clear"><span>•</span></button>
+    <button data-dir="E"  class="dir"><span>E</span></button>
+    <button data-dir="SW" class="dir"><span>SW</span></button>
+    <button data-dir="S"  class="dir"><span>S</span></button>
+    <button data-dir="SE" class="dir"><span>SE</span></button>
+  </nav>
+
+  <!-- Bottom sheet -->
+  <section id="sheet" class="sheet collapsed" aria-label="POI list">
+    <div class="sheet-handle" id="sheet-handle"></div>
+    <div class="sheet-header">
+      <div>
+        <div id="sheet-title" class="sheet-title">Loading…</div>
+        <div id="sheet-subtitle" class="sheet-subtitle"></div>
+      </div>
+      <div id="sheet-count" class="pill" aria-live="polite">0</div>
+    </div>
+    <ul id="sheet-list" class="sheet-list">
+      <li class="skeleton-row"><div class="skeleton"></div><div class="skeleton small"></div></li>
+      <li class="skeleton-row"><div class="skeleton"></div><div class="skeleton small"></div></li>
+      <li class="skeleton-row"><div class="skeleton"></div><div class="skeleton small"></div></li>
+    </ul>
+  </section>
+
+  <!-- Toast -->
+  <div id="toast" class="toast" hidden></div>
+
+  <!-- MapLibre -->
+  <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+  <script type="module" src="/js/app.js"></script>
+</body>
+</html>

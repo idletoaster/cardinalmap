@@ -1,0 +1,28 @@
+{
+  "name": "cardinalmap",
+  "version": "1.0.0",
+  "description": "CardinalMap - mobile-first PWA for finding POIs by 8-direction compass.",
+  "main": "src/server.js",
+  "type": "commonjs",
+  "engines": { "node": ">=20.0.0" },
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "NODE_ENV=development node src/server.js",
+    "migrate": "node scripts/migrate.js",
+    "seed-categories": "node scripts/seed-categories.js",
+    "setup": "npm run migrate && npm run seed-categories",
+    "pm2:start": "pm2 start pm2.ecosystem.cjs",
+    "pm2:stop": "pm2 stop cardinalmap",
+    "pm2:restart": "pm2 restart cardinalmap",
+    "pm2:logs": "pm2 logs cardinalmap",
+    "pm2:save": "pm2 save"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "express": "^4.21.1",
+    "morgan": "^1.10.0",
+    "pg": "^8.13.1",
+    "undici": "^6.21.0"
+  },
+  "license": "MIT"
+}
