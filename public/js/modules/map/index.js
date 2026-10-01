@@ -423,6 +423,7 @@ export function init({ app, events, log }) {
     const collect = (g) => {
       if (g.type === 'Polygon') g.coordinates.forEach(r => r.forEach(c => coords.push(c)));
       else if (g.type === 'MultiPolygon') g.coordinates.forEach(p => p.forEach(r => r.forEach(c => coords.push(c))));
+      else if (g.type === 'Point') coords.push(g.coordinates);  // POIs are points
     };
     fc.features.forEach(f => collect(f.geometry));
     if (!coords.length) return;
