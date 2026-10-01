@@ -22,15 +22,20 @@ function mapCategory(props) {
   const lottery = props.lottery;
   const brand = props.brand;
   if (lottery === 'yes' || shop === 'lottery') return 'lottery_yes';
+  // Brand chain check FIRST so e.g. brand=7-Eleven + shop=convenience is classified
+  // as lottery_chain (they sell CA Lottery at virtually every location).
+  if (brand && isLotteryBrand(brand)) return 'lottery_chain';
   if (amenity === 'fuel') return 'fuel';
   if (shop === 'convenience') return 'convenience';
-  if (brand && isLotteryBrand(brand)) return 'lottery_chain';
   return null;
 }
 
 const LOTTERY_BRANDS = new Set([
+  // Pharmacy / grocery chains known to operate as California Lottery retailers.
   'CVS', 'Walgreens', 'Albertsons', 'Rite Aid', 'Safeway', 'Vons',
   "Trader Joe's", 'H-E-B', 'Publix', 'Winn-Dixie', '99 Ranch Market', 'H Mart',
+  // Convenience + fuel chains that sell California Lottery across most locations.
+  '7-Eleven', 'Chevron', 'Shell', '76', 'Arco', 'Circle K', 'ExtraMile',
 ]);
 function isLotteryBrand(b) { return LOTTERY_BRANDS.has(b); }
 
