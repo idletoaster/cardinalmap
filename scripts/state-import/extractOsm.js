@@ -42,6 +42,7 @@ async function extractAdminBoundaries(pbfPath, outPath) {
     '-f', 'geojson',
     '-o', outPath,
     '--geometry-types=polygon',
+    '-u', 'type_id',
   ]);
   fs.unlinkSync(tmp);
   return outPath;
@@ -72,6 +73,7 @@ async function extractPOIs(pbfPath, outPath) {
     '-f', 'geojson',
     '-o', outPath,
     '--geometry-types=point',
+    '-u', 'type_id',
   ]);
   fs.unlinkSync(tmp);
   return outPath;

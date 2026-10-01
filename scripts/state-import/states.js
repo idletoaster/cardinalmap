@@ -1,4 +1,5 @@
 // scripts/state-import/states.js
+// US state list — Geofabrik URL slug, FIPS code, ISO 3166-2 code.
 'use strict';
 
 const STATES = [
@@ -56,9 +57,16 @@ const STATES = [
 ];
 
 function geofabrikUrl(name) {
-  return `https://download.geofabrik.de/north-america/us/${name}-latest.osm.pbf`;
+  // e.g. https://download.geofabrik.de/north-america/us/california-latest.osm.pbf
+  return `https://download.geofabrik.de/north-america/us/${name}-latest.osm.pbf/`;
 }
-function byCode(code) { return STATES.find((s) => s.code === code); }
-function byName(name) { return STATES.find((s) => s.name === name); }
+
+function byCode(code) {
+  return STATES.find((s) => s.code === code);
+}
+
+function byName(name) {
+  return STATES.find((s) => s.name === name);
+}
 
 module.exports = { STATES, geofabrikUrl, byCode, byName };

@@ -54,22 +54,25 @@ async function loadPOIs(pool, stateRegionId, cities, geojsonPath) {
     if (buf.length === 0) return;
     const valuesSql = [];
     const params = [];
+    // Columns (15): region_id, category_id, osm_id, osm_type, name, brand, address,
+    //   city, state, postcode, phone, website, opening_hours, state_id, geom
+    //   (fetched_at uses DEFAULT now())
     let p = 1;
     for (const r of buf) {
-      valuesSql.push(`($${p++}, $${p++}, $${p++}, $${p++}, $${p++}, $${p++}, $${p++}, $${p++}, $${p++}, $${p++}, $${p++}, $${p++}, $${p++}, $${p++}, $${p++}, $${p++}, ST_SetSRID(ST_MakePoint($${p++}, $${p++}), 4326))`);
+      valuesSql.push(`($${p++},$${p++},$${p++},$${p++},$${p++},$${p++},$${p++},$${p++},$${p++},$${p++},$${p++},$${p++},$${p++},$${p++},ST_SetSRID(ST_MakePoint($${p++},$${p++}),4326))`);
       params.push(
-        r.regionId, r.categoryId, r.osmId, r.osmType,
-        r.name, r.brand, r.address, r.city, r.state, r.postcode,
-        r.phone, r.website, r.openingHours,
-        null, null, r.stateRegionId,
-        r.lon, r.lat,
-      );
+        r.regionId, r.categoryId, r.osmId, r.osmType,             // 4
+        r.name, r.brand, r.address, r.city, r.state, r.postcode, // 6
+        r.phone, r.website, r.openingHours,                       // 3
+        r.stateRegionId,                                         // 1 state_id
+        r.lon, r.lat,                                            // 2 lon/lat for ST_MakePoint
+      );                                                         // 16 params, 16 placeholders
     }
     const sql = `INSERT INTO pois
        (region_id, category_id, osm_id, osm_type,
         name, brand, address, city, state, postcode,
         phone, website, opening_hours,
-        fetched_at, mobile_lat, state_id,
+        state_id,
         geom)
      VALUES ${valuesSql.join(',')}
      ON CONFLICT (region_id, category_id, osm_type, osm_id) DO NOTHING`;
@@ -99,10 +102,13 @@ async function loadPOIs(pool, stateRegionId, cities, geojsonPath) {
       }
     }
 
-    const ref = props[`@id`] || '';
-    const parts = ref.split('/');
-    const osmType = parts[0] === 'way' ? 'way' : (parts[0] === 'relation' ? 'relation' : 'node');
-    const osmId = parseInt(parts[1], 10);
+    // osmium -u type_id emits feature.id like 'n123', 'w456', 'r789'.
+    const fid = (f && f.id) || '';
+    const m = /^([anwr])(\d+)$/i.exec(String(fid));
+    if (!m) { skipped++; continue; }
+    const ch = m[1].toLowerCase();
+    const osmType = ch === 'n' ? 'node' : (ch === 'w' || ch === 'a' ? 'way' : 'relation');
+    const osmId = parseInt(m[2], 10);
     if (!Number.isFinite(osmId)) { skipped++; continue; }
 
     const street = props['addr:street'] || '';
