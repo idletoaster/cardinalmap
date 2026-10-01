@@ -1,5 +1,5 @@
 // CardinalMap service worker v13 - dynamic shell manifest.
-const VERSION = 'cardinalmap-v18';
+const VERSION = 'cardinalmap-v19';
 const SHELL_CACHE = `${VERSION}-shell`;
 const TILE_CACHE  = `${VERSION}-tiles`;
 const DATA_CACHE  = `${VERSION}-data`;
@@ -10,9 +10,9 @@ const SHELL_FALLBACK = [
   '/index.html',
   '/manifest.json',
   '/css/app.css',
-  '/icons/icon.svg',
-  '/icons/icon-192.png',
-  '/icons/icon-512.png',
+  '/icons/icon.svg?v=19',
+  '/icons/icon-192.png?v=19',
+  '/icons/icon-512.png?v=19',
 ];
 
 self.addEventListener('install', (event) => {
