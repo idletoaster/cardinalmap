@@ -1,5 +1,5 @@
 // CardinalMap service worker v13 - dynamic shell manifest.
-const VERSION = 'cardinalmap-v17';
+const VERSION = 'cardinalmap-v18';
 const SHELL_CACHE = `${VERSION}-shell`;
 const TILE_CACHE  = `${VERSION}-tiles`;
 const DATA_CACHE  = `${VERSION}-data`;
