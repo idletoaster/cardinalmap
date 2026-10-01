@@ -8,9 +8,23 @@
       "enabled": true,
       "overpass": {
         "selectors": [
-          ["shop", "convenience"]
+          [
+            "shop",
+            "convenience"
+          ]
         ],
-        "outFields": ["name", "addr:street", "addr:housenumber", "addr:city", "addr:state", "addr:postcode", "opening_hours", "phone", "website", "brand"]
+        "outFields": [
+          "name",
+          "addr:street",
+          "addr:housenumber",
+          "addr:city",
+          "addr:state",
+          "addr:postcode",
+          "opening_hours",
+          "phone",
+          "website",
+          "brand"
+        ]
       }
     },
     {
@@ -21,9 +35,23 @@
       "enabled": true,
       "overpass": {
         "selectors": [
-          ["amenity", "fuel"]
+          [
+            "amenity",
+            "fuel"
+          ]
         ],
-        "outFields": ["name", "addr:street", "addr:housenumber", "addr:city", "addr:state", "addr:postcode", "opening_hours", "phone", "website", "brand"]
+        "outFields": [
+          "name",
+          "addr:street",
+          "addr:housenumber",
+          "addr:city",
+          "addr:state",
+          "addr:postcode",
+          "opening_hours",
+          "phone",
+          "website",
+          "brand"
+        ]
       }
     },
     {
@@ -34,9 +62,23 @@
       "enabled": true,
       "overpass": {
         "selectors": [
-          ["shop", "lottery"]
+          [
+            "shop",
+            "lottery"
+          ]
         ],
-        "outFields": ["name", "addr:street", "addr:housenumber", "addr:city", "addr:state", "addr:postcode", "opening_hours", "phone", "website", "brand"]
+        "outFields": [
+          "name",
+          "addr:street",
+          "addr:housenumber",
+          "addr:city",
+          "addr:state",
+          "addr:postcode",
+          "opening_hours",
+          "phone",
+          "website",
+          "brand"
+        ]
       }
     },
     {
@@ -47,13 +89,110 @@
       "enabled": true,
       "overpass": {
         "selectors": [
-          ["lottery", "yes"],
-          ["amenity", "fuel"],
-          ["shop", "supermarket"],
-          ["shop", "department_store"],
-          ["shop", "kiosk"]
+          [
+            "lottery",
+            "yes"
+          ],
+          [
+            "amenity",
+            "fuel"
+          ],
+          [
+            "shop",
+            "supermarket"
+          ],
+          [
+            "shop",
+            "department_store"
+          ],
+          [
+            "shop",
+            "kiosk"
+          ]
         ],
-        "outFields": ["name", "addr:street", "addr:housenumber", "addr:city", "addr:state", "addr:postcode", "opening_hours", "phone", "website", "brand"]
+        "outFields": [
+          "name",
+          "addr:street",
+          "addr:housenumber",
+          "addr:city",
+          "addr:state",
+          "addr:postcode",
+          "opening_hours",
+          "phone",
+          "website",
+          "brand"
+        ]
+      }
+    },
+    {
+      "id": "lottery_chain",
+      "label": "Lottery Chain Stores",
+      "icon": "ticket",
+      "color": "#c0392b",
+      "enabled": true,
+      "overpass": {
+        "selectors": [
+          [
+            "brand",
+            "CVS"
+          ],
+          [
+            "brand",
+            "Walgreens"
+          ],
+          [
+            "brand",
+            "Albertsons"
+          ],
+          [
+            "brand",
+            "Rite Aid"
+          ],
+          [
+            "brand",
+            "Safeway"
+          ],
+          [
+            "brand",
+            "Vons"
+          ],
+          [
+            "brand",
+            "Trader Joe's"
+          ],
+          [
+            "brand",
+            "H-E-B"
+          ],
+          [
+            "brand",
+            "Publix"
+          ],
+          [
+            "brand",
+            "Winn-Dixie"
+          ],
+          [
+            "brand",
+            "99 Ranch Market"
+          ],
+          [
+            "brand",
+            "H Mart"
+          ]
+        ],
+        "outFields": [
+          "name",
+          "addr:street",
+          "addr:housenumber",
+          "addr:city",
+          "addr:state",
+          "addr:postcode",
+          "opening_hours",
+          "phone",
+          "website",
+          "brand"
+        ]
       }
     }
   ]
