@@ -146,6 +146,17 @@ export function init({ app, events, state, log }) {
     if (center) loadFor(center[1], center[0], dir);
   });
 
+  // Re-apply current POI FC after every map style change (theme toggle).
+  // MapLibre wipes source._data on setStyle(), leaving an empty source even
+  // though state.poisFC still has the data.
+  events.on('map:styledata:ready', () => {
+    const fc = state.get('poisFC');
+    if (fc && fc.features?.length) {
+      const mapApi = app.get('map');
+      if (mapApi) mapApi.setSource('pois', fc);
+    }
+  });
+
   // Reset POIs (and any open popup) when the user navigates back to the full city view.
   events.on('view:change', ({ mode }) => {
     if (mode === 'city') { clearPopup(); clear(); }

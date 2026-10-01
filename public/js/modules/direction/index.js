@@ -44,8 +44,19 @@ export function init({ app, events, state, log }) {
     wedge?.setWedge(dir);
     setTimeout(() => {
       const fc = state.get('wedgeFC');
+      const poisFC = state.get('poisFC');
       const mapApi = app.get('map');
-      if (mapApi && fc) mapApi.fitToWedge(fc, { duration: 600 });
+      if (mapApi && fc) {
+        // POIs can sit OUTSIDE the city boundary in the wedge direction
+        // (e.g. retailers across the city line that are still in the same
+        // compass slice). fitToWedge alone zooms to the city-clipped wedge
+        // polygon and hides those POIs off-screen. Combine wedge + POIs
+        // for the zoom extent.
+        const combined = (poisFC && poisFC.features?.length)
+          ? { type: 'FeatureCollection', features: [...fc.features, ...poisFC.features] }
+          : fc;
+        mapApi.fitTo(combined, { padding: 80, duration: 600 });
+      }
       state.set({ viewMode: 'direction-zoom' });
       events.emit('direction:change', { dir, wedge: fc });
       events.emit('view:change', { mode: 'direction-zoom' });
