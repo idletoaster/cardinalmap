@@ -42,26 +42,16 @@ export function init({ app, events, state, log }) {
     }
     const wedge = app.get('wedge');
     wedge?.setWedge(dir);
-    setTimeout(() => {
-      const fc = state.get('wedgeFC');
-      const poisFC = state.get('poisFC');
-      const mapApi = app.get('map');
-      if (mapApi && fc) {
-        // POIs can sit OUTSIDE the city boundary in the wedge direction
-        // (e.g. retailers across the city line that are still in the same
-        // compass slice). fitToWedge alone zooms to the city-clipped wedge
-        // polygon and hides those POIs off-screen. Combine wedge + POIs
-        // for the zoom extent.
-        const combined = (poisFC && poisFC.features?.length)
-          ? { type: 'FeatureCollection', features: [...fc.features, ...poisFC.features] }
-          : fc;
-        mapApi.fitTo(combined, { padding: 80, duration: 600 });
-      }
-      state.set({ viewMode: 'direction-zoom' });
-      events.emit('direction:change', { dir, wedge: fc });
-      events.emit('view:change', { mode: 'direction-zoom' });
-      log?.(`direction ${dir} applied`);
-    }, 50);
+    const fc = state.get('wedgeFC');
+    state.set({ viewMode: 'direction-zoom' });
+    // Emit BEFORE fit so the poi module starts loading POIs immediately.
+    // The poi module's setPois() will re-fit to (wedge + pois) once data
+    // arrives, so off-boundary POIs end up on-screen.
+    events.emit('direction:change', { dir, wedge: fc });
+    events.emit('view:change', { mode: 'direction-zoom' });
+    const mapApi = app.get('map');
+    if (mapApi && fc) mapApi.fitToWedge(fc, { duration: 600 });
+    log?.(`direction ${dir} applied`);
   }
 
   events.on('compass:dir', ({ dir }) => applyDirection(dir));

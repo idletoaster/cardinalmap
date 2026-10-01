@@ -45,6 +45,20 @@ export function init({ app, events, state, log }) {
     if (deduped.length !== features.length) {
       log?.(`poi dedup ${features.length} -> ${deduped.length}`);
     }
+    // After POIs land, if a direction is active, refit to (wedge + pois)
+    // so POIs OUTSIDE the city boundary are still on-screen. Without this
+    // re-fit the user sees a wedge-only zoom (city-clipped) and the POIs
+    // that cross the city line are invisible.
+    if (state.get('direction') && deduped.length) {
+      const wedgeFC = state.get('wedgeFC');
+      if (wedgeFC && mapApi) {
+        const combined = {
+          type: 'FeatureCollection',
+          features: [...wedgeFC.features, ...deduped],
+        };
+        mapApi.fitTo(combined, { padding: 80, duration: 600 });
+      }
+    }
     return out;
   }
 
